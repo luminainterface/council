@@ -1,0 +1,27 @@
+{
+  "platform": "Windows",
+  "cpu": {
+    "cores": 16,
+    "physical_cores": 8,
+    "frequency": {
+      "current": 3792.0,
+      "min": 0.0,
+      "max": 3792.0
+    }
+  },
+  "memory": {
+    "total_bytes": 34275295232,
+    "available_bytes": 20928614400,
+    "total_gb": 31.92,
+    "available_gb": 19.49
+  },
+  "gpus": [
+    {
+      "name": "NVIDIA GeForce RTX 4070",
+      "memory_total_mb": 12282,
+      "memory_free_mb": 10402,
+      "utilization_percent": 0,
+      "temperature_c": 29
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+CUDA OOM at >65 QPS on 1080 profile 
