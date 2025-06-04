@@ -1,0 +1,186 @@
+models:
+- device: cuda:0
+  dtype: q4_K
+  name: llama2-70b-chat
+  path: /models/llama2-70b-chat.gguf
+- device: cuda:0
+  dtype: q4_K
+  name: mistral-7b-instruct
+  path: /models/mistral-7b-instruct.gguf
+- device: cuda:0
+  dtype: q4_K
+  name: mixtral-8x7b
+  path: /models/mixtral-8x7b.gguf
+
+# VRAM-aware loading strategy
+loading_strategy:
+  quick_test:
+    vram_limit_mb: 1000  # Ultra-conservative limit for CI - force mock only
+    force_cpu: []
+    priority_order:
+      - "gpu_heads_small"
+      
+  gtx_1080:
+    vram_limit_mb: 8000
+    force_cpu: []
+    priority_order:
+      - "gpu_heads_small"
+      - "gpu_heads_medium"
+
+  rtx_4070:
+    vram_limit_mb: 10500
+    force_cpu: []
+    priority_order:
+      - "gpu_heads_small"
+      - "gpu_heads_medium"
+      - "gpu_heads_large"
+
+  rtx_4070_optimized:
+    vram_limit_mb: 9500      # Conservative 4070 limit
+    max_kv_mb_total: 2048    # Total KV cache budget
+    force_cpu: []
+    priority_order:
+      - "gpu_heads_optimized"
+
+  cloud_ready:
+    vram_limit_mb: 2000      # Minimal local footprint
+    force_cloud_primary: true
+    force_cpu: []
+    priority_order:
+      - "gpu_heads_minimal"   # Just 1-2 tiny local models
+      - "cloud_models"        # Primary workhorses
+
+# Model heads by category with explicit backend declarations
+gpu_heads_small:
+- name: "tinyllama_1b"
+  vram_mb: 640
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "mistral_0.5b"
+  vram_mb: 320
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "qwen2_0.5b" 
+  vram_mb: 350
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "safety_guard_0.3b"
+  vram_mb: 200
+  dtype: "q4_K"
+  backend: "transformers"
+
+gpu_heads_medium:
+- name: "phi2_2.7b"
+  vram_mb: 1600
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "codellama_0.7b"
+  vram_mb: 450
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "math_specialist_0.8b"
+  vram_mb: 512
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "openchat_3.5_0.4b"
+  vram_mb: 2400
+  dtype: "q4_K"
+  backend: "transformers"
+
+gpu_heads_large:
+- name: "mistral_7b_instruct"
+  vram_mb: 3500
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "llama2_70b_chat"
+  vram_mb: 8000
+  dtype: "q4_K"
+  backend: "vllm"  # Large model for vLLM when available
+- name: "mixtral_8x7b"
+  vram_mb: 6500
+  dtype: "q4_K"
+  backend: "vllm"  # Large model for vLLM when available
+
+# Optimized heads for RTX 4070 with 4-bit quantization
+gpu_heads_optimized:
+- name: "phi2_2.7b_q4"
+  vram_mb: 1400         # Phi-2 with 4-bit + KV cache  
+  kv_cache_mb: 256      # Per-model KV cache limit
+  dtype: "q4_K_M"
+  backend: "transformers"
+  hf_model: "microsoft/phi-2"  # Real reasoning model
+- name: "tinyllama_1b_q4"
+  vram_mb: 350          # TinyLlama with 4-bit
+  kv_cache_mb: 128      
+  dtype: "q4_K_S"
+  backend: "transformers"
+  hf_model: "microsoft/phi-2"  # Use Phi-2 for better reasoning
+- name: "math_specialist_q4"
+  vram_mb: 400          # Math specialist with 4-bit
+  kv_cache_mb: 128
+  dtype: "q4_K_S" 
+  backend: "transformers"
+  hf_model: "microsoft/phi-2"  # Phi-2 excels at math
+- name: "mistral_0.5b_q4"
+  vram_mb: 200          # Ultra-light Mistral
+  kv_cache_mb: 64
+  dtype: "q4_K_S"
+  backend: "transformers"
+  hf_model: "microsoft/phi-1_5"  # Lighter but capable
+
+cpu_heads:
+- name: "openvino_head"
+  vram_mb: 0
+  dtype: "openvino_fp32"
+  backend: "openvino"
+
+# Cloud models for benchmarking (VRAM = 0, no local spill)
+cloud_models:
+- name: gpt4o_mini
+  path: api:gpt-4o-mini
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 0.40
+  price_per_1k_output: 1.60
+  quality: 82
+  provider: openai
+
+- name: claude_3_haiku
+  path: api:claude-3-haiku-20240307
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 0.25
+  price_per_1k_output: 1.25
+  quality: 78
+  provider: anthropic
+
+- name: mistral_large
+  path: api:mistral-large-latest
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 8.0
+  price_per_1k_output: 24.0
+  quality: 88
+  provider: mistral
+
+# Minimal local models for hybrid setup
+gpu_heads_minimal:
+- name: "safety_guard_local"
+  vram_mb: 200
+  dtype: "q4_K_S"
+  backend: "transformers"
+  hf_model: "gpt2"          # Lightweight safety only
+- name: "router_classifier"
+  vram_mb: 150  
+  dtype: "q4_K_S"
+  backend: "transformers"
+  hf_model: "distilgpt2"    # For smart routing decisions only
+
+profiles:
+  working_test:
+    vram_limit_mb: 6000  # Conservative for RTX 4070
+    target_models:
+      - mistral_0.5b      # 320 MB - small and efficient
+      - safety_guard_0.3b # 200 MB - tiny guard model
+    enable_council: false
+    max_concurrent: 1

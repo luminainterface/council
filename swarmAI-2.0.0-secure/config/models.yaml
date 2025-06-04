@@ -1,0 +1,116 @@
+models:
+- device: cuda:0
+  dtype: q4_K
+  name: llama2-70b-chat
+  path: /models/llama2-70b-chat.gguf
+- device: cuda:0
+  dtype: q4_K
+  name: mistral-7b-instruct
+  path: /models/mistral-7b-instruct.gguf
+- device: cuda:0
+  dtype: q4_K
+  name: mixtral-8x7b
+  path: /models/mixtral-8x7b.gguf
+
+# VRAM-aware loading strategy
+loading_strategy:
+  gtx_1080:
+    vram_limit_mb: 7000
+    force_cpu: ["openvino_head"]
+    priority_order:
+      - "gpu_heads_small"
+      - "gpu_heads_medium"
+      - "gpu_heads_large"
+  rtx_4070:
+    vram_limit_mb: 10500
+    force_cpu: ["openvino_head"]
+    priority_order:
+      - "gpu_heads_small"
+      - "gpu_heads_medium" 
+      - "gpu_heads_large"
+
+# Model heads by category with explicit backend declarations
+gpu_heads_small:
+- name: "tinyllama_1b"
+  vram_mb: 640
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "mistral_0.5b"
+  vram_mb: 320
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "qwen2_0.5b" 
+  vram_mb: 350
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "safety_guard_0.3b"
+  vram_mb: 200
+  dtype: "q4_K"
+  backend: "transformers"
+
+gpu_heads_medium:
+- name: "phi2_2.7b"
+  vram_mb: 1600
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "codellama_0.7b"
+  vram_mb: 450
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "math_specialist_0.8b"
+  vram_mb: 512
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "openchat_3.5_0.4b"
+  vram_mb: 2400
+  dtype: "q4_K"
+  backend: "transformers"
+
+gpu_heads_large:
+- name: "mistral_7b_instruct"
+  vram_mb: 3500
+  dtype: "q4_K"
+  backend: "transformers"
+- name: "llama2_70b_chat"
+  vram_mb: 8000
+  dtype: "q4_K"
+  backend: "vllm"  # Large model for vLLM when available
+- name: "mixtral_8x7b"
+  vram_mb: 6500
+  dtype: "q4_K"
+  backend: "vllm"  # Large model for vLLM when available
+
+cpu_heads:
+- name: "openvino_head"
+  vram_mb: 0
+  dtype: "openvino_fp32"
+  backend: "openvino"
+
+# Cloud models for benchmarking (VRAM = 0, no local spill)
+cloud_models:
+- name: gpt4o_mini
+  path: api:gpt-4o-mini
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 0.40
+  price_per_1k_output: 1.60
+  quality: 82
+  provider: openai
+
+- name: claude_3_haiku
+  path: api:claude-3-haiku-20240307
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 0.25
+  price_per_1k_output: 1.25
+  quality: 78
+  provider: anthropic
+
+- name: mistral_large
+  path: api:mistral-large-latest
+  backend: cloud
+  vram_mb: 0
+  price_per_1k_input: 8.0
+  price_per_1k_output: 24.0
+  quality: 88
+  provider: mistral

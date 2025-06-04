@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T23:15:31.952431",
+    "duration_seconds": 7.109013,
+    "budget_usd": 1.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 0.7666666666666667,
+    "avg_latency_ms": 135.03994146982828,
+    "throughput_qps": 4.219995096365698,
+    "total_cost_usd": 0.023000000000000013,
+    "content_pass_rate": 0.9130434782608695
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": true,
+    "all_targets_met": true
+  },
+  "detailed_results": [
+    {
+      "prompt": "If all bloops are razzles and some razzles are lazzles, are all bloops lazzles?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 3.499746322631836,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "If it's raining, then the ground is wet. The ground is dry. Is it raining?",
+      "answer": "false",
+      "skill_type": "logic",
+      "confidence": 0.95,
+      "latency_ms": 0.9942054748535156,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate Fibonacci sequence",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 2180.7260513305664,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is the capital of France?",
+      "answer": "Based on the knowledge base: FAISS (Facebook AI Similarity Search) is a library for efficient similarity search and clustering.",
+      "skill_type": "knowledge",
+      "confidence": 0.14838124215602874,
+      "latency_ms": 1303.5707473754883,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "skill_type": "knowledge",
+      "confidence": 0.18794848918914794,
+      "latency_ms": 29.999494552612305,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to count vowels in a string",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 37.000179290771484,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.5006065368652344,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 9^2?",
+      "answer": "81",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 2.499818801879883,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the GCD of 48 and 72",
+      "answer": "24",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.4996528625488281,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 36.00049018859863,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Create a function to merge two sorted arrays",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 36.499738693237305,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Calculate the square root of 144",
+      "answer": "12",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 0.9987354278564453,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 36.00144386291504,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 30.001401901245117,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If A is south of B and B south of C, where is A relative to C?",
+      "answer": "south_of_c",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.4992485046386719,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "Neural networks are computing systems inspired by biological neural networks.",
+      "skill_type": "knowledge",
+      "confidence": 0.2827998638153076,
+      "latency_ms": 29.00075912475586,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate: (25 * 4) + (18 / 3)",
+      "answer": "100",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.5006065368652344,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What causes ocean tides?",
+      "answer": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "skill_type": "knowledge",
+      "confidence": 0.17230051159858703,
+      "latency_ms": 28.99909019470215,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain quantum mechanics briefly",
+      "answer": "According to the available information: Quantum mechanics describes the behavior of matter and energy at the atomic and subatomic scale....",
+      "skill_type": "knowledge",
+      "confidence": 0.4300806105136871,
+      "latency_ms": 29.001235961914062,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 7 factorial?",
+      "answer": "5040",
+      "skill_type": "math",
+      "confidence": 2.7,
+      "latency_ms": 1.5001296997070312,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "Python is a high-level programming language known for its simplicity and readability.",
+      "skill_type": "knowledge",
+      "confidence": 0.2778830051422119,
+      "latency_ms": 28.99956703186035,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 8^3?",
+      "answer": "512",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.4913082122802734,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Is John the parent of Mary if Mary is John's daughter?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 0.7,
+      "latency_ms": 0.9698867797851562,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "If Tom is taller than Sam and Sam is taller than Bill, who is shortest?",
+      "answer": "bill",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.5009174346923828,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.5009174346923828,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 35% of 850",
+      "answer": "297.5",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.5001296997070312,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a binary search function",
+      "answer": "Error: Code generation failed: Generated code too short: ipsum",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 108.00004005432129,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Implement a bubble sort algorithm",
+      "answer": "Error: Code generation failed: Generated code too short: ents",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 59.50045585632324,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is the speed of light?",
+      "answer": "299,792,458",
+      "skill_type": "knowledge",
+      "confidence": 0.4907734274864196,
+      "latency_ms": 29.00075912475586,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a short story about a robot",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.2081846535205841,
+      "latency_ms": 29.440879821777344,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    }
+  ]
+}

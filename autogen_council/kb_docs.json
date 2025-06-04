@@ -1,0 +1,66 @@
+{
+  "documents": [
+    "The speed of light in vacuum is approximately 299,792,458 meters per second.",
+    "Paris is the capital and largest city of France.",
+    "Python is a high-level programming language known for its simplicity.",
+    "Machine learning is a subset of artificial intelligence that uses algorithms.",
+    "The Earth orbits the Sun once every 365.25 days.",
+    "DNA stands for deoxyribonucleic acid and contains genetic information.",
+    "The human brain has approximately 86 billion neurons.",
+    "Photosynthesis is the process by which plants convert sunlight into energy.",
+    "The periodic table organizes chemical elements by atomic number.",
+    "Quantum computing uses quantum mechanical phenomena for computation."
+  ],
+  "metadata": [
+    {
+      "type": "physics",
+      "topic": "light",
+      "id": 0
+    },
+    {
+      "type": "geography",
+      "topic": "capitals",
+      "id": 1
+    },
+    {
+      "type": "programming",
+      "topic": "languages",
+      "id": 2
+    },
+    {
+      "type": "ai",
+      "topic": "machine_learning",
+      "id": 3
+    },
+    {
+      "type": "astronomy",
+      "topic": "earth",
+      "id": 4
+    },
+    {
+      "type": "biology",
+      "topic": "genetics",
+      "id": 5
+    },
+    {
+      "type": "neuroscience",
+      "topic": "brain",
+      "id": 6
+    },
+    {
+      "type": "biology",
+      "topic": "photosynthesis",
+      "id": 7
+    },
+    {
+      "type": "chemistry",
+      "topic": "periodic_table",
+      "id": 8
+    },
+    {
+      "type": "physics",
+      "topic": "quantum_computing",
+      "id": 9
+    }
+  ]
+}

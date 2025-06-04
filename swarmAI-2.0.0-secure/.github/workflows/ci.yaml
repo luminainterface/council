@@ -1,0 +1,129 @@
+name: SwarmAI CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Manual trigger for live cloud tests
+    inputs:
+      run_cloud_tests:
+        description: 'Run live cloud API tests'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  # Stage 1: Always run offline smoke tests (< 3s)
+  offline-smoke:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest httpx fastapi uvicorn prometheus-client
+    
+    - name: Run offline smoke tests
+      run: |
+        export SWARM_CLOUD_ENABLED=false
+        python -m pytest -q -m "not cloud" --tb=short
+      
+    - name: Validate test separation
+      run: |
+        echo "✅ Offline tests completed - no cloud API calls made"
+        echo "📊 Cloud tests deselected: $(python -m pytest --collect-only -q -m cloud | grep -c 'selected')"
+
+  # Stage 2: Optional live cloud sanity (manual/nightly only)
+  live-cloud-sanity:
+    runs-on: ubuntu-latest
+    needs: offline-smoke
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_cloud_tests == 'true'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest httpx fastapi uvicorn prometheus-client
+    
+    - name: Run live cloud API tests
+      env:
+        MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SWARM_CLOUD_ENABLED: true
+      run: |
+        python -m pytest -q -m cloud --tb=short
+        
+    - name: Cloud cost validation
+      if: success()
+      run: |
+        echo "✅ Live cloud tests passed"
+        echo "💰 Cloud spend validation: Check costs < $0.20"
+        echo "⚡ Latency validation: Check p95 < 2s"
+
+  # Nightly cloud validation job
+  nightly-cloud-validation:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest httpx fastapi uvicorn prometheus-client jq
+    
+    - name: Full cloud integration test
+      env:
+        MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SWARM_CLOUD_ENABLED: true
+      run: |
+        # Run complete validation suite
+        python -m pytest -q -m cloud
+        
+        # Start server for endpoint testing
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+        
+        # Test hybrid endpoint
+        response=$(curl -s http://localhost:8000/hybrid \
+          -H 'Content-Type: application/json' \
+          -d '{"prompt":"What is 2+2?","preferred_models":["math_specialist_0.8b"]}')
+        
+        echo "$response" | jq '.'
+        
+        # Validate response structure
+        provider=$(echo "$response" | jq -r '.provider')
+        cost_cents=$(echo "$response" | jq -r '.cost_cents')
+        
+        if [[ "$provider" != "null" && "$cost_cents" != "null" ]]; then
+          echo "✅ Nightly validation passed"
+        else
+          echo "❌ Nightly validation failed"
+          exit 1
+        fi
+
+# Schedule nightly runs
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily

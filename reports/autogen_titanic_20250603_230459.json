@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T23:04:59.284318",
+    "duration_seconds": 3.067229,
+    "budget_usd": 1.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 0.0,
+    "avg_latency_ms": 0.01663366953531901,
+    "throughput_qps": 9.780815191822978,
+    "total_cost_usd": 0.0,
+    "content_pass_rate": 0
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": false,
+    "all_targets_met": false
+  },
+  "detailed_results": [
+    {
+      "prompt": "Find the GCD of 48 and 72",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.4990100860595703,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Describe a futuristic city",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Explain how photosynthesis works",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Calculate the square root of 144",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Find the perimeter of a rectangle 8x12",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What causes ocean tides?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is the area of a circle with radius 15?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Create a function to merge two sorted arrays",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to add two numbers",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to check if a number is prime",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Explain quantum mechanics briefly",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to calculate GCD of two numbers",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Create a short story about a robot",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Implement a bubble sort algorithm",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If Alice is older than Bob and Bob is older than Carol, who is youngest?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Calculate 45% of 200",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Find the area of a triangle with base 10 and height 6",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If some birds can fly and penguins are birds, can all birds fly?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is artificial intelligence?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If no fish are mammals and dolphins are mammals, are dolphins fish?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If it's raining, then the ground is wet. The ground is dry. Is it raining?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Is John the parent of Mary if Mary is John's daughter?",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to calculate Fibonacci sequence",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Calculate: (25 * 4) + (18 / 3)",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "Error: 'coroutine' object has no attribute 'skill_type'",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 0.0,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    }
+  ]
+}

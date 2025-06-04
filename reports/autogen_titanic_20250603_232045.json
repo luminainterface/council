@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T23:20:45.588161",
+    "duration_seconds": 7.56298,
+    "budget_usd": 1.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 0.9333333333333333,
+    "avg_latency_ms": 150.06798108418783,
+    "throughput_qps": 3.966690378660264,
+    "total_cost_usd": 0.028000000000000018,
+    "content_pass_rate": 0.8928571428571429
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": true,
+    "all_targets_met": true
+  },
+  "detailed_results": [
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 34.00135040283203,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to count vowels in a string",
+      "answer": "def count_vowels(s):\n    vowels = 'aeiou'\n    return sum(1 for c in s.lower() if c in vowels)",
+      "skill_type": "code",
+      "confidence": 3.4799999999999995,
+      "latency_ms": 2526.0632038116455,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 45% of 200",
+      "answer": "90",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.500844955444336,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If all cats are mammals and Fluffy is a cat, is Fluffy a mammal?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.5001296997070312,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Implement a bubble sort algorithm",
+      "answer": "Error: Generated invalid code: expected '(' (<string>, line 1)",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 134.50026512145996,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to add two numbers",
+      "answer": "def add_two_numbers(a, b):\n    return a + b",
+      "skill_type": "code",
+      "confidence": 2.78,
+      "latency_ms": 36.99183464050293,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the area of a triangle with base 10 and height 6",
+      "answer": "30.0",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 1.4982223510742188,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If Tom is taller than Sam and Sam is taller than Bill, who is shortest?",
+      "answer": "bill",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.5002021789550781,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a palindrome checker function",
+      "answer": "def function():\n    # TODO: implement functionality\n    pass",
+      "skill_type": "code",
+      "confidence": 1.75,
+      "latency_ms": 37.000179290771484,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a binary search function",
+      "answer": "Error: Generated invalid code: expected '(' (<string>, line 1)",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 129.5008659362793,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Who wrote Romeo and Juliet?",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.12327519059181212,
+      "latency_ms": 1308.5007667541504,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate the square root of 144",
+      "answer": "12",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.5001296997070312,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is DNA?",
+      "answer": "Based on the knowledge base: DNA (deoxyribonucleic acid) carries genetic instructions for the development and function of living things.",
+      "skill_type": "knowledge",
+      "confidence": 0.4592762112617492,
+      "latency_ms": 30.000925064086914,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "Python is a high-level programming language known for its simplicity and readability.",
+      "skill_type": "knowledge",
+      "confidence": 0.2778830051422119,
+      "latency_ms": 30.99846839904785,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is the capital of France?",
+      "answer": "Based on the knowledge base: FAISS (Facebook AI Similarity Search) is a library for efficient similarity search and clustering.",
+      "skill_type": "knowledge",
+      "confidence": 0.14838124215602874,
+      "latency_ms": 29.501676559448242,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 8^3?",
+      "answer": "512",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.5017986297607422,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain how photosynthesis works",
+      "answer": "According to the available information: Photosynthesis is the process by which plants convert light energy into chemical energy....",
+      "skill_type": "knowledge",
+      "confidence": 0.5216955423355102,
+      "latency_ms": 28.49102020263672,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.0004043579101562,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 7 factorial?",
+      "answer": "5040",
+      "skill_type": "math",
+      "confidence": 2.7,
+      "latency_ms": 1.5010833740234375,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "def find_max(lst):\n    return max(lst)",
+      "skill_type": "code",
+      "confidence": 2.78,
+      "latency_ms": 37.50014305114746,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "Neural networks are computing systems inspired by biological neural networks.",
+      "skill_type": "knowledge",
+      "confidence": 0.2827998638153076,
+      "latency_ms": 28.999805450439453,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the perimeter of a rectangle 8x12",
+      "answer": "Could not parse algebraic equation",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 1.0008811950683594,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If Alice is older than Bob and Bob is older than Carol, who is youngest?",
+      "answer": "carol",
+      "skill_type": "logic",
+      "confidence": 1.7,
+      "latency_ms": 0.5011558532714844,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "skill_type": "knowledge",
+      "confidence": 0.18794848918914794,
+      "latency_ms": 29.499292373657227,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate: (25 * 4) + (18 / 3)",
+      "answer": "100",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.9969940185546875,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 12 factorial?",
+      "answer": "479001600",
+      "skill_type": "math",
+      "confidence": 2.7,
+      "latency_ms": 0.9999275207519531,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If some birds can fly and penguins are birds, can all birds fly?",
+      "answer": "false",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.5006790161132812,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Describe a futuristic city",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.21841936111450194,
+      "latency_ms": 28.50031852722168,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If all bloops are razzles and some razzles are lazzles, are all bloops lazzles?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.4889965057373047,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "def reverse_string(s):\n    return s[::-1]",
+      "skill_type": "code",
+      "confidence": 3.4799999999999995,
+      "latency_ms": 35.997867584228516,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    }
+  ]
+}

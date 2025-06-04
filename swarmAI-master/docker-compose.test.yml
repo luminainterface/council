@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    ports:
+      - "6333:6333"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  tests:
+    build: .
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    command: python -m pytest tests/ -v
+    volumes:
+      - .:/workspace
+    working_dir: /workspace 

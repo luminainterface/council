@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T23:14:25.282835",
+    "duration_seconds": 26.610087,
+    "budget_usd": 1.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 0.7333333333333333,
+    "avg_latency_ms": 785.0914319356283,
+    "throughput_qps": 1.12739202994714,
+    "total_cost_usd": 0.022000000000000013,
+    "content_pass_rate": 0.9090909090909091
+  },
+  "targets": {
+    "latency_target_met": false,
+    "content_target_met": true,
+    "all_targets_met": false
+  },
+  "detailed_results": [
+    {
+      "prompt": "Find the area of a triangle with base 10 and height 6",
+      "answer": "30.0",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 5.499124526977539,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to count vowels in a string",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 17250.311613082886,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Describe a futuristic city",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "latency_ms": 1222.0022678375244,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If Alice is older than Bob and Bob is older than Carol, who is youngest?",
+      "answer": "carol",
+      "skill_type": "logic",
+      "confidence": 1.7,
+      "latency_ms": 1.5010833740234375,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If A is south of B and B south of C, where is A relative to C?",
+      "answer": "south_of_c",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.99945068359375,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "latency_ms": 649.8162746429443,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain how the internet works",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'conceptual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 1.2000000000000002,
+      "latency_ms": 796.8864440917969,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 40.00234603881836,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "latency_ms": 625.5919933319092,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If some birds can fly and penguins are birds, can all birds fly?",
+      "answer": "false",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.9999275207519531,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate: (25 * 4) + (18 / 3)",
+      "answer": "100",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.9984245300292969,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What causes ocean tides?",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "latency_ms": 639.8043632507324,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.5010833740234375,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 9^2?",
+      "answer": "81",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 1.500844955444336,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is the area of a circle with radius 15?",
+      "answer": "Error: Mock response detected in math: Unsupported geometry problem...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 1.501321792602539,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Find the GCD of 48 and 72",
+      "answer": "24",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.0004043579101562,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate Fibonacci sequence",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 37.500858306884766,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If all cats are mammals and Fluffy is a cat, is Fluffy a mammal?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.001119613647461,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Is John the parent of Mary if Mary is John's daughter?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 0.7,
+      "latency_ms": 1.0001659393310547,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "latency_ms": 642.1163082122803,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Implement a factorial function",
+      "answer": "Error: Mock response detected in math: Unsupported number theory problem...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 1.954793930053711,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 37.00113296508789,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is the capital of France?",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'definitional', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 1.25,
+      "latency_ms": 724.6189117431641,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Implement a bubble sort algorithm",
+      "answer": "Error: Generated invalid code: expected '(' (<string>, line 1)",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 135.50305366516113,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Who wrote Romeo and Juliet?",
+      "answer": "{'documents': [], 'scores': [], 'response': \"I couldn't find relevant information to answer your question.\", 'confidence': 0.1, 'query_type': 'factual', 'num_results': 0, 'faiss_available': False, 'encoder_available': True}",
+      "skill_type": "knowledge",
+      "confidence": 0.8,
+      "latency_ms": 651.1526107788086,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If all bloops are razzles and some razzles are lazzles, are all bloops lazzles?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.9992122650146484,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 45% of 200",
+      "answer": "90",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 2.0024776458740234,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to merge two sorted arrays",
+      "answer": "Error: Code generation failed: Generated code too short: ",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 37.47677803039551,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 37.99796104431152,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 35% of 850",
+      "answer": "297.5",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.5006065368652344,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    }
+  ]
+}

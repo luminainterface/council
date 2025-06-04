@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-04T00:04:52.060340",
+    "duration_seconds": 4.565999,
+    "budget_usd": 1.0,
+    "target_prompts": 10,
+    "completed_requests": 10
+  },
+  "performance": {
+    "success_rate": 0.9,
+    "avg_latency_ms": 354.4511079788208,
+    "throughput_qps": 2.1901012242884854,
+    "total_cost_usd": 0.009000000000000001,
+    "content_pass_rate": 1.0
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": true,
+    "all_targets_met": true
+  },
+  "detailed_results": [
+    {
+      "prompt": "What is 7 factorial?",
+      "answer": "5040",
+      "skill_type": "math",
+      "confidence": 3.66,
+      "latency_ms": 4.498958587646484,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "Python is a high-level programming language known for its simplicity and readability.",
+      "skill_type": "knowledge",
+      "confidence": 0.2778830051422119,
+      "latency_ms": 1962.4593257904053,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "Neural networks are computing systems inspired by biological neural networks.",
+      "skill_type": "knowledge",
+      "confidence": 0.2827998638153076,
+      "latency_ms": 30.500411987304688,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.4994144439697266,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the area of a triangle with base 10 and height 6",
+      "answer": "30.0",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 2.500295639038086,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 45% of 200",
+      "answer": "90",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.5017986297607422,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain quantum mechanics briefly",
+      "answer": "According to the available information: Quantum mechanics describes the behavior of matter and energy at the atomic and subatomic scale....",
+      "skill_type": "knowledge",
+      "confidence": 0.4300806105136871,
+      "latency_ms": 29.500246047973633,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to merge two sorted arrays",
+      "answer": "def merge_sorted_arrays(arr1, arr2):\n    result = []\n    i, j = 0, 0\n    while i < len(arr1) and j < len(arr2):\n        if arr1[i] <= arr2[j]:\n            result.append(arr1[i])\n            i += 1\n        else:\n            result.append(arr2[j])\n            j += 1\n    result.extend(arr1[i:])\n    result.extend(arr2[j:])\n    return result",
+      "skill_type": "code",
+      "confidence": 3.68,
+      "latency_ms": 1474.5497703552246,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "If A is south of B and B south of C, where is A relative to C?",
+      "answer": "south_of_c",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.5004405975341797,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a palindrome checker function",
+      "answer": "Error: Template stub detected - cloud retry needed: def custom_function():\n    return 'Implementation ...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 37.000417709350586,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    }
+  ]
+}

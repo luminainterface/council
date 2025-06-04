@@ -1,0 +1,99 @@
+dataset: datasets/titanic_gauntlet_2025_06.jsonl
+execution:
+  mode: chunked                          # 10 shards of 38 items each
+  chunk_size: 38
+  adaptive_throttle: true                # Auto-sleep when cloud cost > $15
+  prometheus_metrics: true               # Live progress tracking
+
+runners:
+  swarm_council:
+    route: council                       # Purpose-built micro-swarm
+    enable_council: true
+    cost_tracking: detailed
+    chunk_parallel: false                # Sequential for VRAM safety
+    
+  # mistral_medium_3:                   # ← DISABLED for AutoGen testing
+  #   route: ["mistral_medium_3"]        # 13B cloud monolith
+  #   cost_tracking: detailed
+  #   retry_on_rate_limit: true
+  #   rate_limit_delay: 15               # Mistral rate limits
+
+domains:
+  math:
+    weight: 0.30                         # 30% of composite score
+    datasets: ["MATH_100", "GSM8K_100"] 
+    scoring: "exact_numeric"
+    items: 200
+    
+  reasoning:
+    weight: 0.25                         # 25% of composite score
+    datasets: ["BigBench_Hard_50"]
+    scoring: "exact_match"
+    items: 50
+    
+  coding:
+    weight: 0.20                         # 20% of composite score
+    datasets: ["HumanEval_25"]
+    scoring: "compile_and_test"
+    items: 25
+    
+  science:
+    weight: 0.15                         # 15% of composite score
+    datasets: ["AOPS_Orbital_30"]
+    scoring: "numeric_with_units"
+    items: 30
+    
+  planning:
+    weight: 0.05                         # 5% of composite score
+    datasets: ["HotPotQA_2025_25"]
+    scoring: "em_and_f1"
+    items: 25
+    
+  writing:
+    weight: 0.05                         # 5% of composite score
+    datasets: ["SummEval_Creative_25"]
+    scoring: "rouge_l"
+    items: 25
+
+metrics:
+  - accuracy_overall                     # Weighted composite accuracy
+  - accuracy_by_domain                   # Per-domain breakdown
+  - latency_ms_p95                       # 95th percentile latency
+  - latency_ms_mean                      # Average latency
+  - cost_usd_total                       # Total spend
+  - cost_usd_per_domain                  # Cost breakdown
+  - vram_peak_mb                         # Memory usage monitoring
+  - statistical_confidence               # Wilson 95% CI
+
+guards:
+  # Statistical significance requirements
+  swarm_beats_mistral_by: ">=15pp"       # 15 percentage points advantage
+  statistical_confidence: ">=95%"        # 95% confidence interval
+  
+  # Performance requirements  
+  cost_advantage: ">=10x"                # 10x cost advantage minimum
+  swarm_p95_latency_ms: "<=1000"         # Sub-second P95 latency
+  
+  # Operational safety
+  budget_cap_usd: 20.0                   # $20 total budget cap
+  vram_spill_mb: 0                       # No VRAM overflow (9.9GB envelope)
+  max_cloud_spend: 15.0                  # Auto-throttle at $15 cloud spend
+
+statistical_analysis:
+  confidence_interval: 95                # Wilson confidence interval
+  abort_on_overlap: true                 # Stop if CIs overlap (inconclusive)
+  min_samples_per_domain: 20             # Minimum for statistical power
+  effect_size_threshold: 0.15            # 15pp minimum effect size
+
+budget_management:
+  total_cap_usd: 20.0
+  adaptive_throttling:
+    enable: true
+    cloud_threshold: 15.0                # Pause when cloud spend hits $15
+    throttle_delay_minutes: 5            # Wait 5 min before continuing
+  
+operational:
+  prometheus_endpoint: "localhost:9090"  # Metrics export
+  live_dashboard: true                   # Real-time progress
+  checkpoint_every: 10                   # Save progress every 10 items
+  resume_on_failure: true                # Continue from last checkpoint 

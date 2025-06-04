@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-04T00:12:10.524373",
+    "duration_seconds": 4.799499,
+    "budget_usd": 1.0,
+    "target_prompts": 10,
+    "completed_requests": 10
+  },
+  "performance": {
+    "success_rate": 1.0,
+    "avg_latency_ms": 377.85048484802246,
+    "throughput_qps": 2.0835508039484956,
+    "total_cost_usd": 0.010000000000000002,
+    "content_pass_rate": 1.0
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": true,
+    "all_targets_met": true
+  },
+  "detailed_results": [
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "def find_max(lst):\n    return max(lst)",
+      "skill_type": "code",
+      "confidence": 2.78,
+      "latency_ms": 2261.4989280700684,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 9^2?",
+      "answer": "81",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 2.5000572204589844,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If all bloops are razzles and some razzles are lazzles, are all bloops lazzles?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.4998912811279297,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain how the internet works",
+      "answer": "According to the available information: Einstein's theory of relativity revolutionized our understanding of space, time, and gravity....",
+      "skill_type": "knowledge",
+      "confidence": 0.2723472774028778,
+      "latency_ms": 1375.4990100860596,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Describe a futuristic city",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.21841936111450194,
+      "latency_ms": 31.999826431274414,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.501321792602539,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Is John the parent of Mary if Mary is John's daughter?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 0.7,
+      "latency_ms": 0.5009174346923828,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "Neural networks are computing systems inspired by biological neural networks.",
+      "skill_type": "knowledge",
+      "confidence": 0.2827998638153076,
+      "latency_ms": 31.002521514892578,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "def reverse_string(s):\n    return s[::-1]",
+      "skill_type": "code",
+      "confidence": 3.4799999999999995,
+      "latency_ms": 39.000511169433594,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 33.50186347961426,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    }
+  ]
+}

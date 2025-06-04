@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T22:17:08.413127",
+    "duration_seconds": 32.200974,
+    "budget_usd": 10.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 1.0,
+    "avg_latency_ms": 971.1833079655966,
+    "throughput_qps": 0.9316488377028594,
+    "total_cost_usd": 0.03000000000000002,
+    "content_pass_rate": 0.4666666666666667
+  },
+  "targets": {
+    "latency_target_met": false,
+    "content_target_met": false,
+    "all_targets_met": false
+  },
+  "detailed_results": [
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 4278.503179550171,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to add two numbers",
+      "answer": "add(a,b):\n    return a+b\n\nprint(add(1,2))",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 1053.5004138946533,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a short story about a robot",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 9^2?",
+      "answer": "Based on the knowledge base: The speed of light in vacuum is approximately 299,792,458 meters per second, a fundamental constant in physics.",
+      "skill_type": "knowledge",
+      "confidence": 0.2675523042678833,
+      "latency_ms": 24.49941635131836,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 1372.4992275238037,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a binary search function",
+      "answer": "# Algorithm:\n# 1. Set left and right pointers to 0 and n-1\n# 2. While left is less than or equal to right:\n# 3. Find the middle index: mid = (left + right) / 2\n# 4. If the value at the mid index is equal to the target value:\n# 5. Return the mid index\n# 6. If the value at the mid index is less than the target value:\n# 7. Set the left pointer to mid + 1\n# 8. If the value at the mid index is greater than the target value:\n# 9. Set the right pointer to mid - 1\n# 10. If the left pointer is greater than the right pointer:\n# 11. Return -1\n\ndef binary_search(arr, target):\n    left = 0\n    right = len(arr)",
+      "skill_type": "code",
+      "confidence": 0.48999999999999994,
+      "latency_ms": 7531.999349594116,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Implement a factorial function",
+      "answer": "Unsupported number theory problem",
+      "skill_type": "math",
+      "confidence": 0.0,
+      "latency_ms": 0.49996376037597656,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "max_in_list(list_):\n    max_ = list_[0]\n    for i in list_:\n        if i > max_:\n            max_ = i\n    return max_\n\n\nprint(max_in_list([1, 2, 3, 4, 5]))\n\n# Write a Python function to find the max of three numbers\n\ndef max_of_three(a, b, c):\n    if a > b and a > c:\n        return a\n    elif b > a and b > c:\n        return b\n    else:\n        return c\n\n\nprint(max_of_three(1, 2, 3))\n\n# Write a Python function to sum all the numbers in a list.\n\ndef sum_list(list_):\n    sum_ = 0\n    for i in list_:\n        sum_ += i",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 7266.500473022461,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "haiku():\n    print(\"Programming is fun\")\n    print(\"Programming is easy\")\n    print(\"Programming is good\")\n\nhaiku()",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 1309.0004920959473,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "What is the speed of light?",
+      "answer": "299,792,458",
+      "skill_type": "knowledge",
+      "confidence": 0.4907734274864196,
+      "latency_ms": 17.999649047851562,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If some birds can fly and penguins are birds, can all birds fly?",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate GCD of two numbers",
+      "answer": "gcd(a,b):\n    if a == 0:\n        return b\n    return gcd(b%a,a)\n\nprint(gcd(10,20))",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 1598.0007648468018,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the perimeter of a rectangle 8x12",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Who wrote Romeo and Juliet?",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.12327519059181212,
+      "latency_ms": 17.50040054321289,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate Fibonacci sequence",
+      "answer": "fibonacci(n):\n    if n == 0:\n        return 0\n    elif n == 1:\n        return 1\n    else:\n        return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(5))",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 2508.9924335479736,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "What is machine learning?",
+      "answer": "Based on the knowledge base: Machine learning is a subset of artificial intelligence that enables computers to learn from data.",
+      "skill_type": "knowledge",
+      "confidence": 0.6088149189949036,
+      "latency_ms": 16.50094985961914,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a palindrome checker function",
+      "answer": "palindrome_checker(word):\n    if word == word[::-1]:\n        return True\n    else:\n        return False\n\nprint(palindrome_checker(\"racecar\"))\nprint(palindrome_checker(\"hello\"))",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 2099.99942779541,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate 35% of 850",
+      "answer": "Could not parse arithmetic expression",
+      "skill_type": "math",
+      "confidence": 0.0,
+      "latency_ms": 1.0008811950683594,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "unknown",
+      "skill_type": "logic",
+      "confidence": 0.1,
+      "latency_ms": 1.0006427764892578,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What causes ocean tides?",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If all cats are mammals and Fluffy is a cat, is Fluffy a mammal?",
+      "answer": "unknown",
+      "skill_type": "logic",
+      "confidence": 0.1,
+      "latency_ms": 0.4990100860595703,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "If A is south of B and B south of C, where is A relative to C?",
+      "answer": "south_of_c",
+      "skill_type": "logic",
+      "confidence": 0.7,
+      "latency_ms": 0.5002021789550781,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate: (25 * 4) + (18 / 3)",
+      "answer": "100",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 0.49996376037597656,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If it's raining, then the ground is wet. The ground is dry. Is it raining?",
+      "answer": "unknown",
+      "skill_type": "logic",
+      "confidence": 0.1,
+      "latency_ms": 0.5002021789550781,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 8^3?",
+      "answer": "Based on the knowledge base: The Fibonacci sequence is a series where each number is the sum of the two preceding ones.",
+      "skill_type": "knowledge",
+      "confidence": 0.23578734397888182,
+      "latency_ms": 17.002105712890625,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is the area of a circle with radius 15?",
+      "answer": "Based on the knowledge base: The Earth's atmosphere is composed of approximately 78% nitrogen and 21% oxygen.",
+      "skill_type": "knowledge",
+      "confidence": 0.14649546146392822,
+      "latency_ms": 17.50040054321289,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If no fish are mammals and dolphins are mammals, are dolphins fish?",
+      "answer": "unknown",
+      "skill_type": "logic",
+      "confidence": 0.1,
+      "latency_ms": 0.49996376037597656,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 15% of 240?",
+      "answer": "Could not parse arithmetic expression",
+      "skill_type": "math",
+      "confidence": 0.0,
+      "latency_ms": 0.499725341796875,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    }
+  ]
+}

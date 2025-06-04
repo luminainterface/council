@@ -1,0 +1,53 @@
+{
+  "status": "FAILED",
+  "reason": "Advantage -8.7pp < required 15.0pp",
+  "report": {
+    "timestamp": "2025-06-03T19:06:03.745244",
+    "total_duration_seconds": 884.51,
+    "total_tests": 500,
+    "total_cost_usd": 1.1148,
+    "cloud_cost_usd": 0.1473,
+    "statistical_analysis": {
+      "swarm_council": {
+        "total_requests": 250,
+        "success_rate": 0.996,
+        "composite_accuracy": 0.7961218836565097,
+        "confidence_interval": [
+          0.7450628766256411,
+          0.8442388838441548
+        ],
+        "domain_breakdown": {
+          "math": 0.9,
+          "reasoning": 0.3
+        },
+        "cost_total_usd": 0.9674999999999999,
+        "cost_mean_per_request": 0.0038855421686746984,
+        "latency_mean_ms": 199.61537606266128,
+        "latency_p95_ms": 53.499579429626465,
+        "total_tokens": 5366,
+        "vram_peak_mb": 2344.0
+      },
+      "mistral_medium_3": {
+        "total_requests": 250,
+        "success_rate": 1.0,
+        "composite_accuracy": 0.8827586206896552,
+        "confidence_interval": [
+          0.9848661527503766,
+          1
+        ],
+        "domain_breakdown": {
+          "math": 0.9,
+          "reasoning": 0.8
+        },
+        "cost_total_usd": 0.14733079999999998,
+        "cost_mean_per_request": 0.0005893232,
+        "latency_mean_ms": 3297.9513931274414,
+        "latency_p95_ms": 4364.704048633575,
+        "total_tokens": 77967,
+        "vram_peak_mb": 0.0
+      }
+    },
+    "domain_analysis": {
+      "math": {
+        "swarm_council": [
+          

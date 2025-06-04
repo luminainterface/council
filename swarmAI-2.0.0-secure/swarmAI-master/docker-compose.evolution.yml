@@ -1,0 +1,281 @@
+version: '3.8'
+
+services:
+  # 🧠 V11 Emotional Swarm API + Round-Table (Production Ready)
+  swarm-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.swarm-api
+      args:
+        - CUDA_VERSION=12.2
+        - PYTHON_VERSION=3.11
+    image: emotional-tamagotchi/swarm-api:v1.0-evo
+    container_name: swarm-api-evolution
+    ports:
+      - "8000:8000"  # Main API
+      - "9090:9090"  # Prometheus metrics
+    volumes:
+      - ./models:/app/models:ro
+      - ./lora_adapters:/app/loras
+      - ./config:/app/config:ro
+      - ./jobs:/app/jobs
+      - ./evolution_checksums.txt:/app/evolution_checksums.txt:ro
+      - ./performance_history.jsonl:/app/performance_history.jsonl
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - OLLAMA_HOST=http://localhost:11434
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=9090
+      - EVOLUTION_MODE=production
+      - EMOTIONAL_CONSENSUS_TIMEOUT=10000  # 10ms target
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - tamagotchi-evolution-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/logic_god"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1G
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+
+  # 🔥 LoRA Trainer Worker (Horizontal Scaling Ready)
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.trainer
+      args:
+        - PYTORCH_VERSION=2.1.0-cuda12.1-cudnn8-devel
+    image: emotional-tamagotchi/trainer:v1.0-evo
+    container_name: trainer-worker-evolution
+    volumes:
+      - ./jobs:/app/jobs
+      - ./datasets:/app/datasets:ro
+      - ./models:/app/models
+      - ./lora_adapters:/app/loras
+      - ./logs:/app/logs
+      - ./evolution_checksums.txt:/app/evolution_checksums.txt
+      - ./trainer.log:/app/trainer.log
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - LOG_LEVEL=INFO
+      - TRAINER_METRICS_PORT=8080
+      - EVOLUTION_BRANCH=evolution-main
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - tamagotchi-evolution-net
+    depends_on:
+      swarm-api:
+        condition: service_healthy
+    restart: unless-stopped
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import psutil; exit(0 if any('trainer_worker' in p.name() for p in psutil.process_iter()) else 1)"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+
+  # 🎭 Emotional Round-Table Scheduler (CPU-Only)
+  roundtable-scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.scheduler
+      args:
+        - PYTHON_VERSION=3.11-slim
+    image: emotional-tamagotchi/scheduler:v1.0-evo
+    container_name: roundtable-scheduler-evolution
+    volumes:
+      - ./jobs:/app/jobs
+      - ./evolution_checksums.txt:/app/evolution_checksums.txt
+      - ./config:/app/config:ro
+      - ./performance_history.jsonl:/app/performance_history.jsonl:ro
+    environment:
+      - SWARM_API_URL=http://swarm-api:8000
+      - PROMETHEUS_URL=http://prometheus:9090
+      - SCHEDULE_INTERVAL_HOURS=24
+      - LOG_LEVEL=INFO
+      - SCHEDULER_METRICS_PORT=8081
+      - EVOLUTION_BRANCH=evolution-main
+    networks:
+      - tamagotchi-evolution-net
+    depends_on:
+      swarm-api:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8081/health').raise_for_status()"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+
+  # 📊 Prometheus Monitoring (External TSDB Volume)
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus-evolution
+    ports:
+      - "9091:9090"  # External access
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-evolution-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - tamagotchi-evolution-net
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    security_opt:
+      - no-new-privileges:true
+
+  # 📈 Grafana Dashboard (External Data Volume)
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana-evolution
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-evolution-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-evolution-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    networks:
+      - tamagotchi-evolution-net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    user: "472:472"
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    security_opt:
+      - no-new-privileges:true
+
+  # 📱 Telegram Notifier (Lightweight Side-car)
+  telegram-notifier:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.notifier
+      args:
+        - PYTHON_VERSION=3.11-alpine
+    image: emotional-tamagotchi/notifier:v1.0-evo
+    container_name: telegram-notifier-evolution
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - SWARM_API_URL=http://swarm-api:8000
+      - NOTIFICATION_LEVEL=INFO
+    networks:
+      - tamagotchi-evolution-net
+    depends_on:
+      prometheus:
+        condition: service_started
+      swarm-api:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50M
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+
+  # 🌐 Web UI Dashboard (Optional Development Interface)
+  web-ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web-ui
+    image: emotional-tamagotchi/web-ui:v1.0-evo
+    container_name: web-ui-evolution
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./jobs:/app/jobs:ro
+      - ./performance_history.jsonl:/app/performance_history.jsonl:ro
+      - ./evolution_checksums.txt:/app/evolution_checksums.txt:ro
+    environment:
+      - SWARM_API_URL=http://swarm-api:8000
+      - FLASK_ENV=production
+      - LOG_LEVEL=INFO
+    networks:
+      - tamagotchi-evolution-net
+    depends_on:
+      swarm-api:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+
+volumes:
+  prometheus-evolution-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/tamagotchi/prometheus
+  grafana-evolution-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/tamagotchi/grafana
+
+networks:
+  tamagotchi-evolution-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: tamagotchi-evo 

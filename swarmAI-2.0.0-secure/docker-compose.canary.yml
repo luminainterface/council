@@ -1,0 +1,122 @@
+# 🌌 Council Canary Deployment Configuration
+# Extends docker-compose.yml for gradual council rollout
+
+version: '3.8'
+
+services:
+  # 🔥 CANARY AI SWARM SERVER
+  api-canary:
+    build:
+      context: .
+      dockerfile: Dockerfile.canary
+    ports:
+      - "8001:8000"  # Different port for canary
+    environment:
+      - SWARM_COUNCIL_ENABLED=true
+      - COUNCIL_TRAFFIC_PERCENT=5  # Start with 5% traffic
+      - SWARM_CLOUD_ENABLED=true
+      - SWARM_GPU_PROFILE=${SWARM_GPU_PROFILE:-rtx_4070}
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEPLOYMENT_ID=canary-${DEPLOYMENT_VERSION:-v1}
+      - COUNCIL_MAX_COST=0.30
+      - COUNCIL_DAILY_BUDGET=1.00
+      - COUNCIL_MIN_TOKENS=20
+    volumes:
+      - ./logs:/app/logs
+      - ./monitoring:/app/monitoring
+    networks:
+      - swarm-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-canary.rule=Host(`api.swarm.local`) && Headers(`X-Canary`, `true`)"
+      - "traefik.http.services.api-canary.loadbalancer.server.port=8000"
+      - "traefik.http.services.api-canary.loadbalancer.server.weight=5"  # 5% weight
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Load balancer configuration
+  traefik-canary:
+    image: traefik:v2.9
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - swarm-network
+
+  # 📊 PROMETHEUS MONITORING
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - canary-net
+
+  # 📈 GRAFANA DASHBOARD
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    restart: unless-stopped
+    networks:
+      - canary-net
+
+  # 🧪 CANARY PROBE (Runs every hour)
+  canary-probe:
+    build:
+      context: .
+      dockerfile: Dockerfile.probe
+    environment:
+      - CLOUD_MATH_WEIGHT=0.05
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - PROBE_INTERVAL=3600  # 1 hour
+    volumes:
+      - ./logs:/app/logs
+      - ./monitoring:/app/monitoring
+    depends_on:
+      - api-canary
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - canary-net
+
+networks:
+  swarm-network:
+    external: true
+  canary-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data: 

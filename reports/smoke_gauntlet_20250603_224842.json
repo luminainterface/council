@@ -1,0 +1,378 @@
+{
+  "timestamp": "20250603_224842",
+  "total_prompts": 30,
+  "success_rate": 80.0,
+  "mock_rate": 4.166666666666666,
+  "content_accuracy": 76.66666666666667,
+  "avg_latency_ms": 2118.3685958385468,
+  "domain_breakdown": {
+    "math": {
+      "total": 10,
+      "success": 10,
+      "good": 10,
+      "mock": 0
+    },
+    "reasoning": {
+      "total": 8,
+      "success": 8,
+      "good": 8,
+      "mock": 0
+    },
+    "coding": {
+      "total": 7,
+      "success": 1,
+      "good": 0,
+      "mock": 1
+    },
+    "science": {
+      "total": 5,
+      "success": 5,
+      "good": 5,
+      "mock": 0
+    }
+  },
+  "detailed_results": [
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "What is 2 + 2?",
+      "response": "4",
+      "latency_ms": 2019.8554992675781,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.18181818181818182,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "Calculate 8 factorial",
+      "response": "40320",
+      "latency_ms": 2007.4982643127441,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.2727272727272727,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "What is the square root of 64?",
+      "response": "8",
+      "latency_ms": 2005.479097366333,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.18181818181818182,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "Find the GCD of 12 and 18",
+      "response": "6",
+      "latency_ms": 2004.2083263397217,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.09090909090909091,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "What is 5 * 7?",
+      "response": "35",
+      "latency_ms": 2019.8943614959717,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.18181818181818182,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "Solve x^2 - 5x + 6 = 0",
+      "response": "x = [-6]",
+      "latency_ms": 2054.518938064575,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.09090909090909091,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "What is the area of a triangle with base 6 and height 8?",
+      "response": "The Earth's atmosphere is composed of approximately 78% nitrogen and 21% oxygen.",
+      "latency_ms": 4265.360593795776,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.16666666666666666,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "Calculate 2^10",
+      "response": "1024",
+      "latency_ms": 2017.5681114196777,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.18181818181818182,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "What is log base 10 of 1000?",
+      "response": "The human brain contains approximately 86 billion neurons connected by trillions of synapses.",
+      "latency_ms": 2032.4640274047852,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.16666666666666666,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "math",
+      "prompt": "Find the derivative of x^3 + 2x^2 - 5x + 1",
+      "response": "3*x**2",
+      "latency_ms": 2008.469820022583,
+      "model": "autogen-math",
+      "skill_type": "math",
+      "confidence": 0.09090909090909091,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "If A is south of B and B south of C, where is A?",
+      "response": "south_of_c",
+      "latency_ms": 2009.6213817596436,
+      "model": "autogen-logic",
+      "skill_type": "logic",
+      "confidence": 0.2,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "Why might a company choose to outsource manufacturing?",
+      "response": "Machine learning is a subset of artificial intelligence that enables computers to learn from data.",
+      "latency_ms": 2024.980068206787,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "What are the pros and cons of renewable energy?",
+      "response": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "latency_ms": 2023.5252380371094,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "How do cognitive biases affect decision making?",
+      "response": "Statistics is the discipline that concerns the collection, organization, analysis, and interpretatio...",
+      "latency_ms": 2029.1686058044434,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.1,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "Analyze the causes and effects of urbanization",
+      "response": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "latency_ms": 2045.6078052520752,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.16666666666666666,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "Explain why biodiversity is important for ecosystems",
+      "response": "DNA (deoxyribonucleic acid) carries genetic instructions for the development and function of living ...",
+      "latency_ms": 2025.2861976623535,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.3333333333333333,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "What are the ethical implications of AI in healthcare?",
+      "response": "Machine learning is a subset of artificial intelligence that enables computers to learn from data.",
+      "latency_ms": 2023.057222366333,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.16666666666666666,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "reasoning",
+      "prompt": "Analyze the impact of social media on modern communication",
+      "response": "FAISS (Facebook AI Similarity Search) is a library for efficient similarity search and clustering.",
+      "latency_ms": 2033.3540439605713,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.16666666666666666,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "Write a function to add two numbers",
+      "error": "HTTP 500",
+      "latency_ms": 3609.862804412842,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "Implement a bubble sort algorithm",
+      "error": "HTTP 500",
+      "latency_ms": 2191.3211345672607,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "Create a factorial function",
+      "error": "HTTP 500",
+      "latency_ms": 2052.971839904785,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "success",
+      "domain": "coding",
+      "prompt": "Write a function to calculate GCD",
+      "response": "[CLOUD_FALLBACK_NEEDED] Query: Write a function to calculate GCD...",
+      "latency_ms": 2030.4789543151855,
+      "model": "cloud-fallback-needed",
+      "skill_type": "cloud",
+      "confidence": 0.3,
+      "is_mock": true,
+      "content_quality": "poor"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "Explain the difference between a list and a tuple in Python",
+      "error": "HTTP 500",
+      "latency_ms": 2161.196708679199,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "Write a function to check if a number is prime",
+      "error": "HTTP 500",
+      "latency_ms": 2146.526098251343,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "error",
+      "domain": "coding",
+      "prompt": "What are the benefits of using version control systems?",
+      "error": "HTTP 500",
+      "latency_ms": 2102.902889251709,
+      "is_mock": false,
+      "content_quality": "error"
+    },
+    {
+      "status": "success",
+      "domain": "science",
+      "prompt": "Explain the structure and function of DNA",
+      "response": "DNA (deoxyribonucleic acid) carries genetic instructions for the development and function of living ...",
+      "latency_ms": 2059.4797134399414,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.5,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "science",
+      "prompt": "What is quantum entanglement and why is it important?",
+      "response": "Quantum mechanics describes the behavior of matter and energy at the atomic and subatomic scale.",
+      "latency_ms": 2032.257080078125,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.3333333333333333,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "science",
+      "prompt": "What causes evolution and natural selection?",
+      "response": "DNA (deoxyribonucleic acid) carries genetic instructions for the development and function of living ...",
+      "latency_ms": 2021.8162536621094,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.3333333333333333,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "science",
+      "prompt": "Describe the process of photosynthesis",
+      "response": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "latency_ms": 2023.0748653411865,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.3333333333333333,
+      "is_mock": false,
+      "content_quality": "good"
+    },
+    {
+      "status": "success",
+      "domain": "science",
+      "prompt": "What is the speed of light in a vacuum?",
+      "response": "The speed of light in vacuum is approximately 299,792,458 meters per second, a fundamental constant ...",
+      "latency_ms": 2023.8218307495117,
+      "model": "autogen-knowledge",
+      "skill_type": "knowledge",
+      "confidence": 0.3333333333333333,
+      "is_mock": false,
+      "content_quality": "good"
+    }
+  ]
+}

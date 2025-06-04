@@ -1,0 +1,119 @@
+{
+  "status": "FAILED",
+  "reason": "Advantage -8.7pp < required 15.0pp",
+  "report": {
+    "timestamp": "2025-06-03T19:06:03.745244",
+    "total_duration_seconds": 884.51,
+    "total_tests": 500,
+    "total_cost_usd": 1.1148,
+    "cloud_cost_usd": 0.1473,
+    "statistical_analysis": {
+      "swarm_council": {
+        "total_requests": 250,
+        "success_rate": 0.996,
+        "composite_accuracy": 0.796,
+        "confidence_interval": [
+          0.745,
+          0.844
+        ],
+        "domain_breakdown": {
+          "math": 0.9,
+          "reasoning": 0.3
+        },
+        "cost_total_usd": 0.967,
+        "cost_mean_per_request": 0.00389,
+        "latency_mean_ms": 199.6,
+        "latency_p95_ms": 53.5,
+        "total_tokens": 5366,
+        "vram_peak_mb": 2344.0
+      },
+      "mistral_medium_3": {
+        "total_requests": 250,
+        "success_rate": 1.0,
+        "composite_accuracy": 0.883,
+        "confidence_interval": [
+          0.835,
+          0.925
+        ],
+        "domain_breakdown": {
+          "math": 0.9,
+          "reasoning": 0.8
+        },
+        "cost_total_usd": 0.147,
+        "cost_mean_per_request": 0.000589,
+        "latency_mean_ms": 3297.9,
+        "latency_p95_ms": 4364.7,
+        "total_tokens": 77967,
+        "vram_peak_mb": 0.0
+      }
+    },
+    "performance_comparison": {
+      "accuracy_advantage_pp": -8.7,
+      "latency_advantage": {
+        "swarm_mean_ms": 199.6,
+        "mistral_mean_ms": 3297.9,
+        "speedup_factor": 16.5
+      },
+      "cost_advantage": {
+        "swarm_cost_per_request": 0.00389,
+        "mistral_cost_per_request": 0.000589,
+        "cost_ratio": 6.6
+      }
+    },
+    "guards_evaluation": {
+      "swarm_beats_mistral_by_15pp": false,
+      "statistical_confidence_95": true,
+      "cost_advantage_10x": false,
+      "swarm_p95_latency_under_1000ms": true,
+      "budget_cap_20_usd": true,
+      "vram_spill_0mb": true
+    },
+    "dataset_summary": {
+      "total_prompts": 250,
+      "domains": {
+        "math": {
+          "items": 200,
+          "weight": 0.3,
+          "description": "Mathematical calculation tasks"
+        },
+        "reasoning": {
+          "items": 50,
+          "weight": 0.25,
+          "description": "Logical reasoning challenges"
+        }
+      }
+    },
+    "execution_metadata": {
+      "chunks_processed": 7,
+      "api_key_used": "mistral",
+      "stub_dataset": true,
+      "prometheus_metrics": false,
+      "vram_monitoring": true,
+      "budget_management": true
+    },
+    "conclusions": {
+      "swarm_strengths": [
+        "16.5x faster response time",
+        "Equal math performance (90%)",
+        "Sub-second P95 latency (53ms)",
+        "Stayed within VRAM limits",
+        "Reliable execution (99.6% success)"
+      ],
+      "swarm_weaknesses": [
+        "Poor reasoning performance (30% vs 80%)",
+        "Higher cost per request",
+        "Overall accuracy deficit"
+      ],
+      "optimization_targets": [
+        "Improve reasoning domain performance",
+        "Optimize cost per request",
+        "Maintain latency advantage"
+      ],
+      "next_steps": [
+        "Focus on reasoning model training",
+        "Re-run gauntlet after optimization",
+        "Consider hybrid routing for different domains"
+      ]
+    }
+  }
+}

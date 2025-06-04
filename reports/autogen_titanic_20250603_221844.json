@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T22:18:44.575097",
+    "duration_seconds": 13.377499,
+    "budget_usd": 5.0,
+    "target_prompts": 10,
+    "completed_requests": 10
+  },
+  "performance": {
+    "success_rate": 1.0,
+    "avg_latency_ms": 1235.7499361038208,
+    "throughput_qps": 0.7475238832011873,
+    "total_cost_usd": 0.010000000000000002,
+    "content_pass_rate": 0.6
+  },
+  "targets": {
+    "latency_target_met": false,
+    "content_target_met": false,
+    "all_targets_met": false
+  },
+  "detailed_results": [
+    {
+      "prompt": "If Tom is taller than Sam and Sam is taller than Bill, who is shortest?",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.12494920194149016,
+      "latency_ms": 4312.500238418579,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "I'm not sure which specialist can best handle this query.",
+      "skill_type": "unknown",
+      "confidence": 0.1,
+      "latency_ms": 0.0,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to add two numbers",
+      "answer": "add(a,b):\n    return a+b\n\nprint(add(1,2))",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 1032.4993133544922,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "haiku():\n    print(\"I am a programmer\")\n    print(\"I love to code\")\n    print(\"I code every day\")\n\nhaiku()",
+      "skill_type": "code",
+      "confidence": 0.0,
+      "latency_ms": 1445.9996223449707,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a binary search function",
+      "answer": "def binary_search(list, item):\n    low = 0\n    high = len(list) - 1\n\n    while low <= high:\n        mid = (low + high) // 2\n        guess = list[mid]\n        if guess == item:\n            return mid\n        if guess > item:\n            high = mid - 1\n        else:\n            low = mid + 1\n    return None\n\nmy_list = [1, 3, 5, 7, 9]\n\nprint(binary_search(my_list, 3))\nprint(binary_search(my_list, -1))",
+      "skill_type": "code",
+      "confidence": 0.7,
+      "latency_ms": 5541.500091552734,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 15% of 240?",
+      "answer": "Could not parse arithmetic expression",
+      "skill_type": "math",
+      "confidence": 0.0,
+      "latency_ms": 1.5022754669189453,
+      "cost_usd": 0.001,
+      "content_valid": false,
+      "content_details": "Content validation failed",
+      "status": "success"
+    },
+    {
+      "prompt": "If some birds can fly and penguins are birds, can all birds fly?",
+      "answer": "unknown",
+      "skill_type": "logic",
+      "confidence": 0.1,
+      "latency_ms": 1.4986991882324219,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 12 factorial?",
+      "answer": "479001600",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 0.4992485046386719,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 0.49996376037597656,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Explain how the internet works",
+      "answer": "According to the available information: Einstein's theory of relativity revolutionized our understanding of space, time, and gravity....",
+      "skill_type": "knowledge",
+      "confidence": 0.2723472774028778,
+      "latency_ms": 20.999908447265625,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    }
+  ]
+}

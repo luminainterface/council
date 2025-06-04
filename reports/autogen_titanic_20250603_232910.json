@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "timestamp": "2025-06-03T23:29:10.550036",
+    "duration_seconds": 7.116909,
+    "budget_usd": 1.0,
+    "target_prompts": 30,
+    "completed_requests": 30
+  },
+  "performance": {
+    "success_rate": 0.9,
+    "avg_latency_ms": 135.28008460998535,
+    "throughput_qps": 4.215313136644013,
+    "total_cost_usd": 0.027000000000000017,
+    "content_pass_rate": 1.0
+  },
+  "targets": {
+    "latency_target_met": true,
+    "content_target_met": true,
+    "all_targets_met": true
+  },
+  "detailed_results": [
+    {
+      "prompt": "Describe a futuristic city",
+      "answer": "Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+      "skill_type": "knowledge",
+      "confidence": 0.21841936111450194,
+      "latency_ms": 2028.9108753204346,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is the speed of light?",
+      "answer": "299,792,458",
+      "skill_type": "knowledge",
+      "confidence": 0.4907734274864196,
+      "latency_ms": 29.49976921081543,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the area of a triangle with base 10 and height 6",
+      "answer": "30.0",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 2.995729446411133,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If all roses are flowers and some flowers are red, are all roses red?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 1.5003681182861328,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to check if a number is prime",
+      "answer": "Error: Template stub detected - cloud retry needed: def custom_function():\n    return 'Implementation ...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 1476.562261581421,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "If A is south of B and B south of C, where is A relative to C?",
+      "answer": "south_of_c",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.5009174346923828,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 12 factorial?",
+      "answer": "479001600",
+      "skill_type": "math",
+      "confidence": 2.7,
+      "latency_ms": 1.4986991882324219,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a poem about the ocean",
+      "answer": "Photosynthesis is the process by which plants convert light energy into chemical energy.",
+      "skill_type": "knowledge",
+      "confidence": 0.18794848918914794,
+      "latency_ms": 37.50181198120117,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 8^3?",
+      "answer": "512",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 2.0003318786621094,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate Fibonacci sequence",
+      "answer": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+      "skill_type": "code",
+      "confidence": 3.58,
+      "latency_ms": 36.99493408203125,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to calculate GCD of two numbers",
+      "answer": "Error: Template stub detected - cloud retry needed: def custom_function():\n    return 'Implementation ...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 36.4992618560791,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "What is DNA?",
+      "answer": "Based on the knowledge base: DNA (deoxyribonucleic acid) carries genetic instructions for the development and function of living things.",
+      "skill_type": "knowledge",
+      "confidence": 0.4592762112617492,
+      "latency_ms": 29.00075912475586,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If Alice is older than Bob and Bob is older than Carol, who is youngest?",
+      "answer": "carol",
+      "skill_type": "logic",
+      "confidence": 1.7,
+      "latency_ms": 0.5002021789550781,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "If all bloops are razzles and some razzles are lazzles, are all bloops lazzles?",
+      "answer": "true",
+      "skill_type": "logic",
+      "confidence": 1.75,
+      "latency_ms": 0.5009174346923828,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "What is artificial intelligence?",
+      "answer": "Based on the knowledge base: Machine learning is a subset of artificial intelligence that enables computers to learn from data.",
+      "skill_type": "knowledge",
+      "confidence": 0.5564666390419006,
+      "latency_ms": 28.99932861328125,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 9^2?",
+      "answer": "81",
+      "skill_type": "math",
+      "confidence": 1.75,
+      "latency_ms": 0.9996891021728516,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "What is 15% of 240?",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 1.7000000000000002,
+      "latency_ms": 1.0023117065429688,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "If no fish are mammals and dolphins are mammals, are dolphins fish?",
+      "answer": "false",
+      "skill_type": "logic",
+      "confidence": 0.8,
+      "latency_ms": 0.5004405975341797,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Implement quicksort algorithm",
+      "answer": "def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)",
+      "skill_type": "code",
+      "confidence": 2.8,
+      "latency_ms": 110.49938201904297,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a haiku about programming",
+      "answer": "Python is a high-level programming language known for its simplicity and readability.",
+      "skill_type": "knowledge",
+      "confidence": 0.2778830051422119,
+      "latency_ms": 29.502391815185547,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "If Tom is taller than Sam and Sam is taller than Bill, who is shortest?",
+      "answer": "bill",
+      "skill_type": "logic",
+      "confidence": 0.85,
+      "latency_ms": 0.4928112030029297,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Logic answer contains decision",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a palindrome checker function",
+      "answer": "Error: Template stub detected - cloud retry needed: def custom_function():\n    return 'Implementation ...",
+      "skill_type": "error",
+      "confidence": 0.0,
+      "latency_ms": 36.97013854980469,
+      "cost_usd": 0.0,
+      "content_valid": false,
+      "content_details": "Execution error",
+      "status": "error"
+    },
+    {
+      "prompt": "Explain how photosynthesis works",
+      "answer": "According to the available information: Photosynthesis is the process by which plants convert light energy into chemical energy....",
+      "skill_type": "knowledge",
+      "confidence": 0.5216955423355102,
+      "latency_ms": 29.50263023376465,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Calculate the square root of 144",
+      "answer": "12",
+      "skill_type": "math",
+      "confidence": 1.8,
+      "latency_ms": 1.4917850494384766,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the perimeter of a rectangle 8x12",
+      "answer": "40",
+      "skill_type": "math",
+      "confidence": 1.6,
+      "latency_ms": 1.4979839324951172,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a dialogue between two AIs",
+      "answer": "Neural networks are computing systems inspired by biological neural networks.",
+      "skill_type": "knowledge",
+      "confidence": 0.2827998638153076,
+      "latency_ms": 29.501676559448242,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Knowledge answer has substance",
+      "status": "success"
+    },
+    {
+      "prompt": "Find the LCM of 12 and 18",
+      "answer": "36",
+      "skill_type": "math",
+      "confidence": 0.95,
+      "latency_ms": 1.4824867248535156,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Solve: 2x + 5 = 17",
+      "answer": "x = [12]",
+      "skill_type": "math",
+      "confidence": 0.9,
+      "latency_ms": 29.00075912475586,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Math answer contains numbers",
+      "status": "success"
+    },
+    {
+      "prompt": "Write a function to find max in a list",
+      "answer": "def find_max(lst):\n    return max(lst)",
+      "skill_type": "code",
+      "confidence": 2.78,
+      "latency_ms": 36.992549896240234,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    },
+    {
+      "prompt": "Create a function to reverse a string",
+      "answer": "def reverse_string(s):\n    return s[::-1]",
+      "skill_type": "code",
+      "confidence": 3.4799999999999995,
+      "latency_ms": 35.49933433532715,
+      "cost_usd": 0.001,
+      "content_valid": true,
+      "content_details": "Code contains function definition",
+      "status": "success"
+    }
+  ]
+}

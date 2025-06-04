@@ -1,0 +1,29 @@
+# AutoGen Council v2.4.0 Requirements
+# Production-ready multi-agent AI system dependencies
+
+# Core ML/AI Libraries
+torch>=1.13.0
+transformers>=4.21.0
+sentence-transformers>=2.2.0
+sympy>=1.11.0
+numpy>=1.21.0
+
+# API & Web Framework
+fastapi>=0.95.0
+uvicorn>=0.20.0
+pydantic>=1.10.0
+
+# Optional Performance Boosters
+faiss-cpu>=1.7.3          # For vector search (use faiss-gpu if you have CUDA)
+accelerate>=0.20.0        # For faster model loading
+
+# Logic Programming (Optional)
+# pyswip>=0.2.10          # Uncomment if SWI-Prolog is installed
+
+# Development & Testing
+pytest>=7.0.0
+requests>=2.28.0
+
+# Utilities
+python-dateutil>=2.8.0
+pathlib2>=2.3.0 

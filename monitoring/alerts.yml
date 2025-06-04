@@ -1,0 +1,20 @@
+groups:
+  - name: canary_alerts
+    rules:
+      - alert: CanaryHighErrorRate
+        expr: rate(canary_math_errors_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Canary error rate too high"
+          description: "Error rate is {{ $value }} errors/sec"
+
+      - alert: CanaryHighCost
+        expr: canary_cloud_cost_total > 1.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Canary costs approaching limit"
+          description: "Daily cost is ${{ $value }}" 
