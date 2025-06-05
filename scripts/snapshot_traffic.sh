@@ -21,13 +21,13 @@ echo "[PARSE] Converting RDB → SQLite..."
 python -m snapshot.rdb2sqlite "$WORK/raw.rdb" "$WORK/traffic.db"
 echo "✅ SQLite database created"
 
-# Step 3: Export to JSONL
-echo "[EXPORT] Generating JSONL training files..."
-python -m snapshot.sqlite2jsonl \
+# Step 3: Export to weighted JSONL (with reward data)
+echo "[EXPORT] Generating weighted JSONL training files..."
+python -m snapshot.weighted_jsonl \
     --db "$WORK/traffic.db" \
     --out-train "$WORK/train.jsonl" \
     --out-holdout "$WORK/holdout.jsonl"
-echo "✅ JSONL files generated"
+echo "✅ Weighted JSONL files generated with reward buffer integration"
 
 # Step 4: Package for trainer
 echo "[PACKAGE] Compressing and staging..."

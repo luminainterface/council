@@ -58,14 +58,17 @@ class EnhancedRouter:
                     executor=routing_info['executor']
                 ).inc()
         
+        # GPU-aware routing decision
+        gpu_routing = self._determine_gpu_routing(detected_flags, routing_info)
+        
         # Determine if we need executor routing
         if should_route_to_executor(detected_flags):
             execution_result = await self._route_to_executor(
-                prompt, routing_info, context or {}
+                prompt, routing_info, context or {}, gpu_routing
             )
         else:
             execution_result = await self._route_to_agent(
-                prompt, routing_info, context or {}
+                prompt, routing_info, context or {}, gpu_routing
             )
         
         processing_time = (time.time() - start_time) * 1000
@@ -84,20 +87,30 @@ class EnhancedRouter:
     
     async def _route_to_executor(self, prompt: str, routing_info: Dict, 
                                context: Dict) -> Dict[str, Any]:
-        """Route to specialized executor via Redis queue"""
+        """Route to specialized executor via Redis queue with GPU awareness"""
         job_id = str(uuid.uuid4())[:8]
         
-        # Prepare job payload
+        # GPU profile routing logic
+        model_cfg = context.get('model_config', {})
+        if model_cfg.get("gpu_profile") == "gpu_aux":
+            target_queue = "gpu_aux:q"
+            gpu_assignment = "gpu_aux"
+        else:
+            target_queue = "swarm:exec:q"
+            gpu_assignment = "gpu_main"
+        
+        # Prepare job payload with GPU routing
         job_payload = {
             'job_id': job_id,
             'prompt': prompt,
             'context': context,
             'routing': routing_info,
+            'gpu_profile': gpu_assignment,
             'timestamp': time.time(),
             'requires_sandbox': routing_info.get('requires_sandbox', False)
         }
         
-        queue_name = routing_info['queue']
+        queue_name = target_queue
         
         try:
             # Push to Redis queue
@@ -238,12 +251,41 @@ class EnhancedRouter:
         """Handle general requests"""
         return f"General processing completed for: {prompt[:50]}..."
     
+    def _determine_gpu_routing(self, flags: List[str], routing_info: Dict) -> Dict[str, str]:
+        """Determine GPU assignment based on flags and model requirements"""
+        
+        # Complex models go to GPU-1 (aux)
+        heavy_flags = {'FLAG_ANALYSIS', 'FLAG_CREATIVE', 'FLAG_NETWORK'}
+        if any(flag in heavy_flags for flag in flags):
+            return {
+                'gpu_profile': 'gpu_aux',
+                'queue': 'gpu_aux:q',
+                'device_id': '1'
+            }
+        
+        # Fast response models stay on GPU-0 (main)
+        fast_flags = {'FLAG_MATH', 'FLAG_SYSCALL'}
+        if any(flag in fast_flags for flag in flags):
+            return {
+                'gpu_profile': 'gpu_main', 
+                'queue': 'swarm:exec:q',
+                'device_id': '0'
+            }
+        
+        # Default to main GPU
+        return {
+            'gpu_profile': 'gpu_main',
+            'queue': 'swarm:exec:q', 
+            'device_id': '0'
+        }
+    
     def get_routing_stats(self) -> Dict[str, Any]:
         """Get routing statistics"""
         stats = {
             'total_flags_processed': 0,
             'flag_distribution': {},
             'executor_usage': {},
+            'gpu_usage': {'gpu_main': 0, 'gpu_aux': 0},
             'redis_connection': 'unknown'
         }
         

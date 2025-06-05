@@ -1,0 +1,155 @@
+# Prometheus Alert Rules for Reward Buffer System
+# #202 Reward Buffer monitoring and KPI tracking
+
+groups:
+  - name: reward_buffer
+    rules:
+      # Critical: Reward coverage below target (25%)
+      - alert: RewardRowsLow
+        expr: reward_row_ratio < 0.25
+        for: 1h
+        labels:
+          severity: warning
+          component: reward_buffer
+          kpi: reward_coverage
+        annotations:
+          summary: "Reward coverage below 25% target"
+          description: "Only {{ $value | humanizePercentage }} of training rows have feedback rewards"
+          action: "Check feedback submission rate and user engagement"
+          runbook_url: "https://docs.spiral.ai/runbooks/reward-buffer.md#low-coverage"
+
+      # Critical: No reward processing recently
+      - alert: RewardBufferStale
+        expr: time() - reward_buffer_processing_timestamp > 86400  # 24 hours
+        for: 30m
+        labels:
+          severity: critical
+          component: reward_buffer
+        annotations:
+          summary: "Reward buffer processing stalled"
+          description: "No reward buffer processing in 24+ hours"
+          action: "Check snapshot pipeline and weighted_jsonl script"
+
+      # Warning: Very low reward coverage
+      - alert: RewardRowsCriticallyLow
+        expr: reward_row_ratio < 0.10
+        for: 30m
+        labels:
+          severity: critical
+          component: reward_buffer
+        annotations:
+          summary: "Critical: Reward coverage below 10%"
+          description: "Only {{ $value | humanizePercentage }} reward coverage - training will be ineffective"
+          action: "Urgent: Check feedback system and user experience"
+
+      # Info: High reward coverage achieved
+      - alert: RewardCoverageExcellent
+        expr: reward_row_ratio >= 0.50
+        for: 2h
+        labels:
+          severity: info
+          component: reward_buffer
+        annotations:
+          summary: "Excellent reward coverage achieved"
+          description: "{{ $value | humanizePercentage }} reward coverage - optimal for training"
+
+      # Warning: Training data too small
+      - alert: TrainingDataSmall
+        expr: training_rows_total < 1000
+        for: 1h
+        labels:
+          severity: warning
+          component: reward_buffer
+        annotations:
+          summary: "Training dataset too small"
+          description: "Only {{ $value }} training rows - may not be sufficient for LoRA"
+          action: "Check traffic volume and snapshot retention"
+
+      # Info: KPI target achievement
+      - alert: RewardBufferKPIAchieved
+        expr: reward_row_ratio >= 0.25
+        for: 24h
+        labels:
+          severity: info
+          component: reward_buffer
+          kpi: achieved
+        annotations:
+          summary: "Reward buffer KPI achieved"
+          description: "Sustained 25%+ reward coverage for 24+ hours - target met!"
+
+  # Data quality monitoring
+  - name: reward_buffer_quality
+    rules:
+      # Reward distribution sanity checks
+      - alert: RewardDistributionSkewed
+        expr: |
+          (
+            rate(feedback_score_total{score="1"}[1h]) > 
+            rate(feedback_score_total{score="-1"}[1h]) * 10
+          ) or (
+            rate(feedback_score_total{score="-1"}[1h]) > 
+            rate(feedback_score_total{score="1"}[1h]) * 10
+          )
+        for: 2h
+        labels:
+          severity: warning
+          component: reward_buffer
+        annotations:
+          summary: "Reward distribution highly skewed"
+          description: "Feedback scores are heavily biased - check data quality"
+          action: "Investigate feedback patterns and potential gaming"
+
+      # Processing performance
+      - alert: RewardBufferProcessingSlow
+        expr: |
+          increase(reward_buffer_processing_timestamp[1d]) == 0 and
+          time() % 86400 > 7200  # After 02:00 UTC
+        for: 1h
+        labels:
+          severity: warning
+          component: reward_buffer
+        annotations:
+          summary: "Reward buffer processing delayed"
+          description: "Daily reward buffer processing not completed on schedule"
+          action: "Check snapshot pipeline performance and resource allocation"
+
+      # Data freshness
+      - alert: RewardDataStale
+        expr: time() - reward_buffer_processing_timestamp > 172800  # 48 hours
+        for: 1h
+        labels:
+          severity: critical
+          component: reward_buffer
+        annotations:
+          summary: "Reward data critically stale"
+          description: "Reward buffer data is 48+ hours old"
+          action: "Immediate intervention required - check snapshot pipeline"
+
+  # Integration health
+  - name: reward_buffer_integration
+    rules:
+      # Redis connectivity for feedback lookup
+      - alert: RewardBufferRedisErrors
+        expr: increase(reward_buffer_redis_errors_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: reward_buffer
+        annotations:
+          summary: "Reward buffer Redis connectivity issues"
+          description: "{{ $value }} Redis errors in reward buffer processing"
+          action: "Check Redis health and network connectivity"
+
+      # Training file generation
+      - alert: TrainingFilesNotGenerated
+        expr: |
+          time() % 86400 > 7200 and  # After 02:00 UTC
+          time() - reward_buffer_processing_timestamp > 3600  # No processing in 1h
+        for: 30m
+        labels:
+          severity: critical
+          component: reward_buffer
+        annotations:
+          summary: "Training files not generated today"
+          description: "Daily training file generation appears to have failed"
+          action: "Check snapshot pipeline and weighted_jsonl processing" 

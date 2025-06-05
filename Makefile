@@ -256,10 +256,10 @@ stage10:
 	@python scripts/static_analysis.py
 	@echo "✅ Stage 10: PASS"
 
-# Stage 11: Supply chain security scan
+# Stage 11: Supply chain security scan (pip-audit)
 stage11:
 	@echo "🔒 Stage 11: Running supply chain security scan..."
-	@python scripts/supply_chain_scan.py
+	@python scripts/pip_audit_scan.py
 	@echo "✅ Stage 11: PASS"
 
 # Development helpers

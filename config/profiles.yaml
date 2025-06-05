@@ -1,0 +1,9 @@
+gpu_main:
+  id: 0
+  role: draft # TinyLlama + vLLM speculative
+  max_vram_gb: 10.5
+
+gpu_aux:
+  id: 1
+  role: specialist # Mixtral Q4 heads
+  max_vram_gb: 11 

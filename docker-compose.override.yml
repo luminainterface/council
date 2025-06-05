@@ -43,4 +43,36 @@ services:
       - BUDGET_MAX_DAILY=0.50
     depends_on:
       - redis
-      - vllm 
+      - vllm
+
+  mixtral:
+    image: mixtral:latest
+    environment:
+      CUDA_VISIBLE_DEVICES: "${GPU_AUX_ID:-1}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+              driver: nvidia
+              count: 1
+              device_ids: ["${GPU_AUX_ID:-1}"]
+
+  # Original services maintained
+  api:
+    environment:
+      - GPU_MAIN_ID=${GPU_MAIN_ID:-0}
+      - GPU_AUX_ID=${GPU_AUX_ID:-1}
+  
+  pattern-miner:
+    environment:
+      - GPU_PROFILE_CONFIG=/app/config/profiles.yaml 
+
+  # Drift Exporter for Semantic Monitoring
+  drift-exporter:
+    build: ./drift_exporter
+    volumes:
+      - ./snapshots:/snapshots:ro
+    ports:
+      - "9105:9105"
+    restart: unless-stopped

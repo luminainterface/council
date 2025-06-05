@@ -1,0 +1,38 @@
+groups:
+- name: gpu_alerts
+  rules:
+  - alert: GPURAMHighAux
+    expr: avg_over_time(gpu_memory_used_bytes{gpu="1"}[1m]) / 1e9 > 10
+    for: 1m
+    labels:
+      severity: warn
+    annotations:
+      summary: "GPU-1 (Aux) memory usage high"
+      description: "Mixtral GPU memory usage: {{$value}}GB > 10GB threshold"
+  
+  - alert: GPURAMHighMain  
+    expr: avg_over_time(gpu_memory_used_bytes{gpu="0"}[1m]) / 1e9 > 9.5
+    for: 1m
+    labels:
+      severity: warn
+    annotations:
+      summary: "GPU-0 (Main) memory usage high"
+      description: "Main GPU memory usage: {{$value}}GB > 9.5GB threshold"
+  
+  - alert: GPUTemperatureHigh
+    expr: gpu_temperature_celsius > 82
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "GPU temperature critical"
+      description: "GPU {{$labels.gpu}} temperature: {{$value}}°C > 82°C"
+  
+  - alert: GPUUtilizationImbalance
+    expr: abs(gpu_utilization_percent{gpu="0"} - gpu_utilization_percent{gpu="1"}) > 40
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "GPU load imbalance detected"
+      description: "GPU utilization difference > 40% between devices" 

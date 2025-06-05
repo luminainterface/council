@@ -68,6 +68,12 @@ scrape_configs:
     static_configs:
       - targets: ['alertmanager:9093']
 
+  # Drift Exporter - semantic drift monitoring
+  - job_name: 'drift_exporter'
+    metrics_path: /
+    static_configs:
+      - targets: ["drift-exporter:9105"]
+
 alerting:
   alertmanagers:
     - static_configs:

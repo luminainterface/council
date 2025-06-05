@@ -1,0 +1,271 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Multi-GPU Monitoring Dashboard",
+    "tags": ["gpu", "multi-gpu", "vram"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "GPU Memory Usage by Device",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "gpu_memory_used_bytes{gpu=\"0\"}",
+            "legendFormat": "GPU-0 (Main/Draft)",
+            "refId": "A"
+          },
+          {
+            "expr": "gpu_memory_used_bytes{gpu=\"1\"}",
+            "legendFormat": "GPU-1 (Aux/Specialist)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 8000000000
+                },
+                {
+                  "color": "red",
+                  "value": 10000000000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "GPU Utilization Stacked",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "rate(gpu_utilization_percent{gpu=\"0\"}[1m])",
+            "legendFormat": "GPU-0 Util %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(gpu_utilization_percent{gpu=\"1\"}[1m])",
+            "legendFormat": "GPU-1 Util %", 
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "orientation": "horizontal",
+              "displayMode": "gradient"
+            },
+            "color": {
+              "mode": "continuous-GrYlRd"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 60
+                },
+                {
+                  "color": "red", 
+                  "value": 85
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "GPU Temperature Monitoring",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "gpu_temperature_celsius{gpu=\"0\"}",
+            "legendFormat": "GPU-0 Temp",
+            "refId": "A"
+          },
+          {
+            "expr": "gpu_temperature_celsius{gpu=\"1\"}",
+            "legendFormat": "GPU-1 Temp",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "celsius",
+            "custom": {
+              "displayMode": "lcd",
+              "orientation": "horizontal"
+            },
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 24,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Model Routing Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (gpu_profile) (swarm_router_flag_total)",
+            "legendFormat": "{{gpu_profile}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "mappings": []
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": ""
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right"
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 12
+        }
+      },
+      {
+        "id": 5,
+        "title": "GPU Memory Efficiency",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "gpu_memory_used_bytes{gpu=\"0\"} / 11000000000 * 100",
+            "legendFormat": "GPU-0 Memory %",
+            "refId": "A"
+          },
+          {
+            "expr": "gpu_memory_used_bytes{gpu=\"1\"} / 11000000000 * 100", 
+            "legendFormat": "GPU-1 Memory %",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "fillOpacity": 10,
+              "gradientMode": "hue",
+              "spanNulls": false,
+              "showPoints": "never"
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 12
+        }
+      }
+    ],
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+} 
