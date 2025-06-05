@@ -213,6 +213,32 @@ def test_request_latency_metrics(client):
     
     print(f"✅ Latency metrics: {len(latency_metrics)} metrics, {reasonable_latencies} with reasonable values")
 
+def test_budget_monitoring_metrics(client):
+    """Test budget metrics for Stage 5 validation - Ticket #113"""
+    import router.budget_guard as bg
+    
+    # Reset budget for clean test
+    bg.reset_budget()
+    
+    # Simulate some usage
+    bg.add_cost(0.25)
+    
+    remaining = bg.remaining_budget()
+    spent = 1.00 - remaining
+    
+    # Check that we're under the warning threshold ($0.80)
+    assert spent <= 0.80, f"Budget spend ${spent:.2f} exceeds warning threshold $0.80"
+    
+    # Simulate approaching warning threshold
+    bg.add_cost(0.50)  # Total now $0.75
+    remaining = bg.remaining_budget()
+    spent = 1.00 - remaining
+    
+    assert spent <= 0.80, f"Budget spend ${spent:.2f} still within warning threshold"
+    
+    print(f"✅ Budget monitoring: ${spent:.2f} spent, ${remaining:.2f} remaining")
+    print(f"✅ Warning threshold check: ${spent:.2f} ≤ $0.80 ✓")
+
 def test_system_health_metrics(client):
     """Test that system health metrics are available"""
     

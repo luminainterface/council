@@ -11,6 +11,15 @@ import redis
 import time
 from typing import Dict, Any
 
+# Add project root to path for budget guard import
+sys.path.insert(0, '.')
+try:
+    from router.budget_guard import reset_budget as bg_reset, remaining_budget
+    BUDGET_GUARD_AVAILABLE = True
+except ImportError:
+    BUDGET_GUARD_AVAILABLE = False
+    print("⚠️ Budget guard module not available, using legacy reset")
+
 def reset_budget_via_api(base_url: str = "http://localhost:8001") -> bool:
     """Reset budget counters via API endpoint"""
     try:
@@ -112,6 +121,20 @@ def main():
     """Main budget reset function for CI gate"""
     print("💰 Stage 9: Resetting budget counters...")
     
+    # NEW: Use budget guard module if available
+    if BUDGET_GUARD_AVAILABLE:
+        try:
+            bg_reset()
+            remaining = remaining_budget()
+            print(f"✅ Budget guard reset: ${remaining:.2f} available")
+            
+            if remaining == 1.00:
+                print("🎯 Stage 9: PASS - Budget successfully reset via budget guard")
+                return 0
+        except Exception as e:
+            print(f"⚠️ Budget guard reset failed: {e}, falling back to legacy reset")
+    
+    # Fallback to legacy reset methods
     # Try API reset first
     api_success = reset_budget_via_api()
     

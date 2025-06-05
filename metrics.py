@@ -31,7 +31,7 @@ class RouterMetrics:
     
     def __init__(self):
         if PROMETHEUS_AVAILABLE:
-            # Flag routing metrics
+            # Flag routing metrics with consistent labelsets
             self.flag_counter = Counter(
                 "swarm_router_flag_total",
                 "Total flag routing hits",
@@ -60,7 +60,7 @@ class RouterMetrics:
                 registry=registry
             )
             
-            # Execution metrics
+            # Execution metrics with consistent labels
             self.execution_success_total = Counter(
                 "swarm_execution_success_total",
                 "Total successful executions",
@@ -75,7 +75,7 @@ class RouterMetrics:
                 registry=registry
             )
             
-            # Week 3 strategic metrics with shared registry
+            # Week 3 strategic metrics with shared registry and board_rank filter
             self.merge_efficiency = Gauge(
                 "merge_efficiency",
                 "Chess merge efficiency ratio",
@@ -95,7 +95,7 @@ class RouterMetrics:
                 registry=registry
             )
             
-            logger.info("✅ Router metrics initialized with Prometheus")
+            logger.info("✅ Router metrics initialized with shared registry")
         else:
             self._init_mock_metrics()
     
