@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: "Spiral Ops"
+    folder: "Lumina / Ops"
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards/spiral_ops.json 
