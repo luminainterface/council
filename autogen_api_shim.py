@@ -214,6 +214,38 @@ def push_reload_metric(name: str, value: float):
     except Exception as e:
         logger.warning(f"⚠️ Failed to push reload metric: {e}")
 
+# Reward Buffer metrics
+def get_reward_buffer_stats():
+    """Get reward buffer statistics for monitoring"""
+    try:
+        import requests
+        pushgateway_url = os.environ.get("PUSHGATEWAY_URL", "http://pushgateway:9091")
+        
+        response = requests.get(f"{pushgateway_url}/metrics", timeout=5)
+        if response.status_code == 200:
+            metrics_text = response.text
+            
+            # Parse reward buffer metrics
+            reward_ratio = 0.0
+            reward_rows = 0
+            
+            for line in metrics_text.split('\n'):
+                if line.startswith('reward_row_ratio '):
+                    reward_ratio = float(line.split(' ')[1])
+                elif line.startswith('reward_rows_total '):
+                    reward_rows = int(float(line.split(' ')[1]))
+            
+            return {
+                "reward_ratio": reward_ratio,
+                "reward_rows": reward_rows,
+                "kpi_status": "pass" if reward_ratio >= 0.25 else "fail",
+                "target_ratio": 0.25
+            }
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to get reward buffer stats: {e}")
+    
+    return {"reward_ratio": 0.0, "reward_rows": 0, "kpi_status": "unknown", "target_ratio": 0.25}
+
 async def cloud_fallback(query: str) -> Dict[str, Any]:
     """Cloud fallback when local models fail or return mocks"""
     # For now, return a clearly marked cloud response
@@ -1123,6 +1155,59 @@ async def get_feedback_stats():
     except Exception as e:
         logger.error(f"❌ Feedback stats failed: {e}")
         return {"error": str(e), "total_feedback": 0}
+
+@app.get("/api/reward-buffer/stats")
+async def get_reward_buffer_status():
+    """📊 Get reward buffer statistics and KPI status"""
+    try:
+        import requests
+        pushgateway_url = os.environ.get("PUSHGATEWAY_URL", "http://pushgateway:9091")
+        
+        response = requests.get(f"{pushgateway_url}/metrics", timeout=5)
+        if response.status_code == 200:
+            metrics_text = response.text
+            
+            # Parse reward buffer metrics
+            reward_ratio = 0.0
+            reward_rows = 0
+            training_rows = 0
+            holdout_rows = 0
+            last_processing = 0
+            
+            for line in metrics_text.split('\n'):
+                if line.startswith('reward_row_ratio '):
+                    reward_ratio = float(line.split(' ')[1])
+                elif line.startswith('reward_rows_total '):
+                    reward_rows = int(float(line.split(' ')[1]))
+                elif line.startswith('training_rows_total '):
+                    training_rows = int(float(line.split(' ')[1]))
+                elif line.startswith('holdout_rows_total '):
+                    holdout_rows = int(float(line.split(' ')[1]))
+                elif line.startswith('reward_buffer_processing_timestamp '):
+                    last_processing = float(line.split(' ')[1])
+            
+            # Calculate status
+            kpi_pass = reward_ratio >= 0.25
+            total_rows = training_rows + holdout_rows
+            
+            return {
+                "reward_ratio": reward_ratio,
+                "reward_rows": reward_rows,
+                "total_rows": total_rows,
+                "training_rows": training_rows,
+                "holdout_rows": holdout_rows,
+                "kpi_status": "pass" if kpi_pass else "fail",
+                "kpi_target": 0.25,
+                "last_processing": last_processing,
+                "coverage_percentage": reward_ratio * 100,
+                "status": "healthy" if kpi_pass else "warning"
+            }
+        else:
+            return {"error": "Pushgateway unavailable", "status": "unknown"}
+            
+    except Exception as e:
+        logger.error(f"❌ Reward buffer stats failed: {e}")
+        return {"error": str(e), "status": "error"}
 
 @app.post("/api/chat")
 async def chat_endpoint(request: QueryRequest):
