@@ -86,6 +86,11 @@ scrape_configs:
     static_configs:
       - targets: ['swarm-api-canary:8000']
 
+  # Patchctl microservice for automated patching
+  - job_name: 'patchctl'
+    static_configs:
+      - targets: ['patchctl:9000']
+
 alerting:
   alertmanagers:
     - static_configs:
