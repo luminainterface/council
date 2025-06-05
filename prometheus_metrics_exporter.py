@@ -28,6 +28,10 @@ stream_first_token_latency = Histogram(
     buckets=(0.025, 0.050, 0.080, 0.100, 0.200, 0.500, 1.0, float('inf'))  # 25ms, 50ms, 80ms, 100ms, 200ms buckets
 )
 
+# Registry singleton metrics (Ticket #121)
+registry_singleton_violation_total = Counter('registry_singleton_violation_total', 'Registry singleton violations prevented')
+registry_duplicate_push_total = Counter('registry_duplicate_push_total', 'Legacy duplicate push metric (deprecated)')  # Legacy metric maintained for compatibility
+
 def get_gpu_metrics():
     """Get GPU metrics using nvidia-smi"""
     try:
