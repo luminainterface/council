@@ -1,52 +1,150 @@
-FROM nvidia/cuda:12.1-devel-ubuntu22.04
+# Production Trainer for Spiral v2.7.0
+FROM nvidia/cuda:12.1-runtime-ubuntu22.04
 
-WORKDIR /app
+# Build arguments
+ARG VERSION=v2.7.0
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128 \
+    CUDA_VISIBLE_DEVICES=0 \
+    HF_HOME=/models/cache \
+    TRANSFORMERS_CACHE=/models/cache \
+    TORCH_HOME=/models/cache \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Labels for better container management
+LABEL maintainer="Spiral AI Team" \
+      version="$VERSION" \
+      description="LoRA Training and Nightly Distillation Service" \
+      gpu.required="true"
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
+    python3-dev \
+    build-essential \
     git \
     curl \
-    cron \
+    wget \
+    jq \
+    htop \
+    vim \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symlink for python
-RUN ln -s /usr/bin/python3 /usr/bin/python
+# Create app user for security
+RUN groupadd -r spiral && useradd -r -g spiral spiral
 
-# Install PyTorch with CUDA support
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Create necessary directories
+RUN mkdir -p /app/trainer \
+             /app/data/completions \
+             /app/data/experiments \
+             /app/models/distilled \
+             /app/logs \
+             /app/tasks \
+             /models/cache \
+    && chown -R spiral:spiral /app /models
 
-# Install training dependencies
-RUN pip install \
-    transformers \
-    peft \
-    datasets \
-    accelerate \
-    bitsandbytes \
-    wandb \
-    prometheus-client
+# Set working directory
+WORKDIR /app
 
-# Copy training scripts
-COPY train_lora.sh .
-COPY train_lora.py .
-COPY requirements.txt .
+# Copy requirements first for better layer caching
+COPY trainer/requirements.txt /app/trainer/
+COPY requirements.txt /app/
 
-# Install additional requirements
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    # Install PyTorch with CUDA support first
+    python3 -m pip install --no-cache-dir \
+        torch==2.1.1+cu121 \
+        torchvision==0.16.1+cu121 \
+        --index-url https://download.pytorch.org/whl/cu121 && \
+    # Install trainer-specific requirements
+    python3 -m pip install --no-cache-dir -r /app/trainer/requirements.txt && \
+    # Install other app requirements
+    python3 -m pip install --no-cache-dir -r /app/requirements.txt && \
+    # Clean up
+    python3 -m pip cache purge
 
-# Create directories
-RUN mkdir -p /app/loras /app/data/lora /app/models
+# Copy application code
+COPY trainer/ /app/trainer/
+COPY nightly_distiller.py /app/
+COPY pattern_miner.py /app/
+COPY cost_tracker.py /app/
+COPY config/ /app/config/
 
-# Make training script executable
-RUN chmod +x train_lora.sh
+# Create health check script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Check if trainer worker is running\n\
+if ! pgrep -f "trainer_worker.py" > /dev/null; then\n\
+    echo "ERROR: trainer_worker.py not running"\n\
+    exit 1\n\
+fi\n\
+\n\
+# Check if we can write to logs\n\
+if ! touch /app/logs/health_check.tmp; then\n\
+    echo "ERROR: Cannot write to logs directory"\n\
+    exit 1\n\
+fi\n\
+rm -f /app/logs/health_check.tmp\n\
+\n\
+# Check Redis connectivity (if available)\n\
+python3 -c "\n\
+import redis\n\
+import os\n\
+try:\n\
+    r = redis.Redis(host=os.getenv(\"REDIS_HOST\", \"redis\"), port=6379, socket_timeout=5)\n\
+    r.ping()\n\
+    print(\"Redis connection: OK\")\n\
+except Exception as e:\n\
+    print(f\"Redis connection: FAILED - {e}\")\n\
+    exit(1)\n\
+"\n\
+\n\
+echo "Health check: OK"\n\
+exit 0\n\
+' > /app/health_check.sh && chmod +x /app/health_check.sh
 
-# Set environment for CUDA optimization
-ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
-ENV CUDA_LAUNCH_BLOCKING=0
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "🚀 Starting Spiral Trainer v2.7.0"\n\
+echo "GPU Available: $(python3 -c \"import torch; print(torch.cuda.is_available())\")"\n\
+\n\
+if [ "$1" = "--health" ]; then\n\
+    exec /app/health_check.sh\n\
+elif [ "$1" = "--test" ]; then\n\
+    echo "Running trainer test..."\n\
+    python3 -c "from trainer.lora_train import LoRATrainer; print(\"Import successful\")"\n\
+    echo "✅ Trainer test passed"\n\
+elif [ "$1" = "--watch" ]; then\n\
+    echo "👀 Starting trainer worker in watch mode"\n\
+    exec python3 /app/trainer/trainer_worker.py\n\
+else\n\
+    echo "🔄 Starting trainer worker"\n\
+    exec python3 /app/trainer/trainer_worker.py "$@"\n\
+fi\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Switch to non-root user
+USER spiral
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /app/health_check.sh
 
 # Expose metrics port
-EXPOSE 8080
+EXPOSE 8002
 
-# Start with cron for scheduled training
-CMD ["cron", "-f"] 
+# Volumes for data persistence
+VOLUME ["/models", "/app/data", "/app/logs", "/app/tasks"]
+
+# Default command
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["--watch", "/app/tasks"] 

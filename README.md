@@ -4,7 +4,7 @@
 ## From Production API to Memory-Powered Code-Executing Intelligent Companion
 *Built through 90 Days of Architectural Blueprinting + 48 Hours of Human-AI Collaborative Development*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) [![CUDA](https://img.shields.io/badge/CUDA-RTX_4070-green.svg)](https://developer.nvidia.com/cuda-downloads) [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://github.com/luminainterface/council)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/) [![CUDA](https://img.shields.io/badge/CUDA-RTX_4070-green.svg)](https://developer.nvidia.com/cuda-downloads) [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://github.com/luminainterface/council) [![CI](https://github.com/<org>/swarm-ai/actions/workflows/full-pipes.yml/badge.svg)](https://github.com/<org>/swarm-ai/actions/workflows/full-pipes.yml) [![Nightly Self-Train](https://img.shields.io/badge/Nightly%20Self--Train-✅%20Active-success.svg)](http://localhost:9000/admin/training-status) [![Budget Protected](https://img.shields.io/badge/Budget%20Protected-$0.10%2Fday-blue.svg)](http://localhost:9000/budget)
 
 ---
 
@@ -31,6 +31,10 @@
 🆕 **Enhanced Admin Interface** - Beautiful dark theme with live API key management  
 🆕 **Live Key Rotation** - Update API keys without service restart  
 🆕 **Vibrant UI Colors** - Modern gradient styling across all interfaces  
+🤖 **Autonomous Learning** - Nightly LoRA self-training with QLoRA 4-bit quantization  
+💰 **Cost Protection** - Dual-layer budget guards ($0.02/call, $0.10/day)  
+🚦 **Canary Deployment** - 95/5 traffic split with hot weight switching  
+📊 **Evolution Pipeline** - Automated pattern mining and model distillation  
 
 **[📖 Read the Complete Evolution Journey →](docs/evolution/v2.7.0_full.md)**
 
@@ -85,6 +89,62 @@ The admin panel displays live statistics:
 curl http://localhost:8001/stats
 # Should show updated provider status
 ```
+
+## 🤖 **NEW in v2.7.0: Autonomous Learning Pipeline**
+
+### **🔄 Nightly Self-Training**
+Spiral v2.7.0 introduces **autonomous learning** - the system trains itself every night using LoRA fine-tuning:
+
+**Key Features:**
+- **⏰ Scheduled Training**: Every night at 2:00 AM UTC
+- **🧠 QLoRA 4-bit**: Memory-efficient quantized training  
+- **💰 Budget Protected**: $0.10 daily limit shared with API
+- **🔥 Hot Model Reload**: New models loaded without downtime
+- **📊 Pattern Mining**: Automatic training data generation
+
+### **🚀 Evolution Quickstart**
+```bash
+# Deploy the complete autonomous system
+make -f Makefile.spiral up
+
+# Start evolution training pipeline  
+make -f Makefile.spiral evolution-up
+
+# Test a single training cycle
+make -f Makefile.spiral evolution-once
+
+# Check training status
+make -f Makefile.spiral evolution-health
+
+# View training logs
+make -f Makefile.spiral logs-trainer
+
+# Check budget utilization
+make -f Makefile.spiral budget-status
+```
+
+### **📈 Monitoring Your Self-Training System**
+```bash
+# View evolution dashboard
+open http://localhost:3000/d/evolution
+
+# Check training metrics
+curl http://localhost:9000/metrics | grep training
+
+# View scheduled jobs
+curl http://localhost:9000/admin/training-status
+
+# Monitor budget usage
+curl http://localhost:9000/budget
+```
+
+### **🎯 Training Configuration**
+The system automatically optimizes itself with:
+- **Rank 16** LoRA adapters (configurable)
+- **30-minute** training time limits
+- **QLoRA 4-bit** quantization for efficiency
+- **Pattern mining** every 6 hours
+- **Automatic retry** on failures
 
 ## 🔧 **ENVIRONMENT SETUP & API KEYS**
 

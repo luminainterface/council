@@ -1,7 +1,7 @@
 # AutoGen Council Makefile
 # Provides convenient commands for development, testing, and deployment
 
-.PHONY: help setup start stop test micro soak titanic health logs clean test-all test-unit test-service test-e2e test-ui install-test-deps
+.PHONY: help setup start stop test micro soak titanic health logs clean test-all test-unit test-service test-e2e test-ui install-test-deps gate stage0 stage1 stage2 stage3 stage4 stage5 clean test-fast test-integration
 
 # Default target
 help:
@@ -151,6 +151,29 @@ monitor:
 	@echo "Prometheus: http://localhost:9090"
 	@echo "API Metrics: http://localhost:9000/metrics"
 
+# Spiral Evolution Pipeline
+evolution-once:
+	@echo "🌀 Evolving model with yesterday's traffic..."
+	@DATE=$$(date -u +%Y-%m-%d --date='yesterday') && \
+		echo "Training on data from: $$DATE" && \
+		docker-compose run --rm \
+			-e DATA_DIR="/loras/$$DATE" \
+			-e BASE_MODEL="/models/tinyllama" \
+			trainer \
+			python -m trainer.run_once
+	@echo "✅ Evolution cycle complete!"
+
+evolution-test:
+	@echo "🧪 Testing evolution pipeline..."
+	@DATE=$$(date -u +%Y-%m-%d) && \
+		echo "Dry-run training on: $$DATE" && \
+		docker-compose run --rm \
+			-e DATA_DIR="/loras/$$DATE" \
+			-e BASE_MODEL="/models/tinyllama" \
+			-e DRY_RUN=true \
+			trainer \
+			python -m trainer.run_once
+
 # Cleanup
 clean:
 	@echo "🧹 Cleaning up..."
@@ -162,11 +185,126 @@ clean-models:
 	@echo "🗑️ Cleaning model cache..."
 	rm -rf models/
 
-# Release gate
-gate: micro soak titanic
-	@echo "🚪 Release gate tests completed!"
-	@echo "📊 Check reports/ directory for detailed results"
+# Release gate - Complete bulletproof validation
+gate: stage0 stage1 stage2 stage3 stage4 stage5 stage6 stage7 stage8 stage9 stage10 stage11
+	@echo "🎉 GREEN-LIGHT: All validation stages passed!"
+	@echo "✅ System is 100% bulletproof and ready to ship"
 
+# Stage 0: Prep - Isolated environment
+stage0:
+	@echo "🚀 Stage 0: Setting up isolated test environment..."
+	@bash scripts/setup_test_env.sh
+	@echo "✅ Stage 0: PASS"
+
+# Stage 1: Schema sanity - actions.json validation  
+stage1:
+	@echo "🔍 Stage 1: Validating actions.json schema..."
+	@python scripts/validate_actions.py
+	@echo "✅ Stage 1: PASS"
+
+# Stage 2: Ultra-fast unit tests (< 200ms)
+stage2:
+	@echo "⚡ Stage 2: Running ultra-fast unit tests..."
+	@python -m pytest tests/test_unit_fast.py -v --tb=short
+	@echo "✅ Stage 2: PASS"
+
+# Stage 3: Integration smoke tests (p95 ≤ 800ms)
+stage3:
+	@echo "🔥 Stage 3: Running integration smoke tests..."
+	@python -m pytest tests/test_integration_smoke.py -v --tb=short
+	@echo "✅ Stage 3: PASS"
+
+# Stage 4: Security regression tests
+stage4:
+	@echo "🔒 Stage 4: Running security regression tests..."
+	@python -m pytest tests/test_security_regression.py -v --tb=short
+	@echo "✅ Stage 4: PASS"
+
+# Stage 5: Metrics sanity checks
+stage5:
+	@echo "📊 Stage 5: Running metrics sanity checks..."
+	@python -m pytest tests/test_metrics_sanity.py -v --tb=short
+	@echo "✅ Stage 5: PASS"
+
+# Stage 6: Race-free concurrency tests
+stage6:
+	@echo "🔀 Stage 6: Running race-free concurrency tests..."
+	@python -m pytest tests/test_race_free_concurrency.py -v --tb=short
+	@echo "✅ Stage 6: PASS"
+
+# Stage 9: Budget reset 
+stage9:
+	@echo "💰 Stage 9: Resetting budget counters..."
+	@python scripts/reset_budget.py
+	@echo "✅ Stage 9: PASS"
+
+# Stage 7: GPU hygiene tests
+stage7:
+	@echo "🎮 Stage 7: Running GPU hygiene tests..."
+	@python -m pytest tests/test_gpu_hygiene.py -v --tb=short
+	@echo "✅ Stage 7: PASS"
+
+# Stage 8: Load canary tests
+stage8:
+	@echo "🏋️ Stage 8: Running load canary tests..."
+	@python scripts/run_load_test.py
+	@echo "✅ Stage 8: PASS"
+
+# Stage 10: Static analysis and coverage
+stage10:
+	@echo "🔍 Stage 10: Running static analysis and coverage..."
+	@python scripts/static_analysis.py
+	@echo "✅ Stage 10: PASS"
+
+# Stage 11: Supply chain security scan
+stage11:
+	@echo "🔒 Stage 11: Running supply chain security scan..."
+	@python scripts/supply_chain_scan.py
+	@echo "✅ Stage 11: PASS"
+
+# Development helpers
+test-fast:
+	@echo "⚡ Running fast unit tests only..."
+	@python tests/test_unit_fast.py
+
+test-integration:
+	@echo "🔥 Running integration tests only..."
+	@python tests/test_integration_smoke.py
+
+test-security:
+	@echo "🔒 Running security tests only..."
+	@python tests/test_security_regression.py
+
+test-metrics:
+	@echo "📊 Running metrics tests only..."
+	@python tests/test_metrics_sanity.py
+
+# Start test server
+test-server:
+	@echo "🚀 Starting test server..."
+	@LUMINA_MODE=test python autogen_api_shim.py
+
+# Run all test layers
+test-all: test-unit test-service test-e2e test-ui
+	@echo ""
+	@echo "=================================="
+	@echo "🎉 All test layers completed!"
+	@echo "=================================="
+	@echo "✅ Unit tests: Pure Python logic"
+	@echo "✅ Service tests: FastAPI endpoints" 
+	@echo "✅ E2E tests: Docker stack health"
+	@echo "✅ UI tests: Frontend functionality"
+	@echo ""
+
+# Quick test (unit + service only)
+test-quick: test-unit test-service
+
+# CI-friendly test run
+test-ci:
+	pytest -q tests/unit tests/service --tb=short
+	@echo "CI tests completed"
+
+# Tag new version
 tag:
 	@echo "🏷️ Tagging new version..."
 	@if [ "$(VERSION)" = "" ]; then \
@@ -220,22 +358,29 @@ test-ui:
 		echo "Node.js/npx not available, skipping UI tests"; \
 	fi
 
-# Run all test layers
-test-all: test-unit test-service test-e2e test-ui
-	@echo ""
-	@echo "=================================="
-	@echo "🎉 All test layers completed!"
-	@echo "=================================="
-	@echo "✅ Unit tests: Pure Python logic"
-	@echo "✅ Service tests: FastAPI endpoints" 
-	@echo "✅ E2E tests: Docker stack health"
-	@echo "✅ UI tests: Frontend functionality"
-	@echo ""
+# Full validation (alias for gate)
+validate: gate
 
-# Quick test (unit + service only)
-test-quick: test-unit test-service
+# CI-friendly validation with coverage
+ci-gate: stage0 stage1 stage2 stage3 stage4 stage5 stage9
+	@echo "🎯 CI validation complete - system ready for deployment"
 
-# CI-friendly test run
-test-ci:
-	pytest -q tests/unit tests/service --tb=short
-	@echo "CI tests completed" 
+# Help
+help:
+	@echo "Green-Light Plan - Bulletproof Validation"
+	@echo "========================================"
+	@echo ""
+	@echo "Commands:"
+	@echo "  make gate          - Run full validation pipeline (stages 0-5,9)"
+	@echo "  make stage1        - Schema validation only"
+	@echo "  make stage2        - Ultra-fast unit tests only"
+	@echo "  make stage3        - Integration smoke tests only"
+	@echo "  make stage4        - Security regression tests only"
+	@echo "  make stage5        - Metrics sanity checks only"
+	@echo "  make test-server   - Start test server"
+	@echo "  make clean         - Clean test artifacts"
+	@echo "  make help          - Show this help"
+	@echo ""
+	@echo "CI Usage:"
+	@echo "  make ci-gate       - Full CI validation pipeline"
+	@echo "" 

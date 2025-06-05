@@ -1,0 +1,142 @@
+# Prometheus Alert Rules for Feedback System
+# #201 Feedback-Ingest monitoring and KPI tracking
+
+groups:
+  - name: feedback_ingestion
+    rules:
+      # Critical: Feedback ingestion rate below target (25%)
+      - alert: FeedbackIngestLow
+        expr: rate(feedback_ingest_total[30m]) < (rate(request_total[30m]) * 0.25)
+        for: 1h
+        labels:
+          severity: warning
+          component: feedback
+          kpi: feedback_rate
+        annotations:
+          summary: "Feedback ingestion rate below target"
+          description: "Feedback rate {{ $value | humanizePercentage }} is below 25% target for 1+ hours"
+          action: "Check feedback UI widgets and user experience"
+          runbook_url: "https://docs.spiral.ai/runbooks/feedback.md#low-ingestion-rate"
+
+      # Critical: No feedback received recently
+      - alert: FeedbackIngestStopped
+        expr: increase(feedback_ingest_total[2h]) == 0
+        for: 30m
+        labels:
+          severity: critical
+          component: feedback
+        annotations:
+          summary: "Feedback ingestion completely stopped"
+          description: "No feedback received in 2+ hours"
+          action: "Check Redis connectivity and feedback API health"
+
+      # Warning: High feedback storage latency
+      - alert: FeedbackStorageSlow
+        expr: histogram_quantile(0.95, rate(feedback_latency_seconds_bucket[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: feedback
+        annotations:
+          summary: "Feedback storage latency high"
+          description: "P95 feedback storage latency {{ $value }}s > 100ms"
+          action: "Check Redis performance and connection pool"
+
+      # Critical: Redis errors in feedback storage
+      - alert: FeedbackRedisErrors
+        expr: increase(feedback_redis_errors_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: feedback
+        annotations:
+          summary: "Feedback Redis errors detected"
+          description: "{{ $value }} Redis errors in last 5 minutes"
+          action: "Check Redis health and connectivity"
+
+      # Info: High positive feedback rate
+      - alert: HighPositiveFeedback
+        expr: |
+          (
+            rate(feedback_score_total{score="1"}[1h]) / 
+            rate(feedback_ingest_total[1h])
+          ) > 0.8
+        for: 30m
+        labels:
+          severity: info
+          component: feedback
+        annotations:
+          summary: "High positive feedback rate"
+          description: "{{ $value | humanizePercentage }} positive feedback - model performing well"
+
+      # Warning: High negative feedback rate
+      - alert: HighNegativeFeedback
+        expr: |
+          (
+            rate(feedback_score_total{score="-1"}[1h]) / 
+            rate(feedback_ingest_total[1h])
+          ) > 0.3
+        for: 15m
+        labels:
+          severity: warning
+          component: feedback
+        annotations:
+          summary: "High negative feedback rate"
+          description: "{{ $value | humanizePercentage }} negative feedback - investigate model quality"
+          action: "Check recent model changes and response quality"
+
+      # Warning: Feedback API endpoint errors
+      - alert: FeedbackAPIErrors
+        expr: |
+          rate(feedback_request_duration_seconds_count{endpoint="submit"}[5m]) -
+          rate(feedback_request_duration_seconds_count{endpoint="submit"}[5m] offset 5m) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: feedback
+        annotations:
+          summary: "Feedback API errors detected"
+          description: "Errors in feedback submission endpoint"
+          action: "Check API logs and Redis connectivity"
+
+      # KPI tracking: Target achievement
+      - alert: FeedbackKPITarget
+        expr: feedback_rate_ratio >= 0.25
+        for: 24h
+        labels:
+          severity: info
+          component: feedback
+          kpi: achieved
+        annotations:
+          summary: "Feedback rate KPI achieved"
+          description: "Sustained 25%+ feedback rate for 24+ hours - target met!"
+
+  # Data quality rules
+  - name: feedback_quality
+    rules:
+      # Data staleness
+      - alert: FeedbackDataStale
+        expr: time() - feedback_rate_ratio{last_updated} > 3600
+        for: 15m
+        labels:
+          severity: warning
+          component: feedback
+        annotations:
+          summary: "Feedback metrics not updating"
+          description: "Feedback rate data hasn't been updated in 1+ hours"
+          action: "Check metrics collection process"
+
+      # Score distribution sanity
+      - alert: FeedbackScoreDistributionAnomaly
+        expr: |
+          (
+            rate(feedback_score_total{score="0"}[1h]) / 
+            rate(feedback_ingest_total[1h])
+          ) > 0.9
+        for: 30m
+        labels:
+          severity: warning
+          component: feedback
+        annotations:
+          summary: "Unusual feedback score distribution"
+          description: "90%+ neutral scores - check UI or data quality" 

@@ -125,8 +125,8 @@ async function sendMessage() {
   
   try {
     const t0 = performance.now();
-    // Use the new /chat endpoint that includes Council voices
-    const res = await fetch('/chat', {
+    // Use the /hybrid endpoint for Agent-0 + Council routing
+    const res = await fetch('/hybrid', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({

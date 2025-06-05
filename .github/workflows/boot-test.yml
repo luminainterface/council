@@ -1,0 +1,64 @@
+name: Agent-0 Boot Test
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  boot-test:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Docker with GPU support
+      run: |
+        # Add NVIDIA Docker repository
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+        sudo apt-get update && sudo apt-get install -y nvidia-docker2
+        sudo systemctl restart docker
+
+    # ➊ build & install
+    - name: Install Agent-0
+      run: |
+        chmod +x install.sh
+        ./install.sh --quiet
+        sudo systemctl enable --now agent0-compose
+        sleep 60          # models prefetch + api warm-up
+
+    # ➋ health probe (port 8000 - aligned with run-book)
+    - name: Health check
+      run: curl --fail http://localhost:8000/health
+
+    # ➌ metrics probe (port 9091 - aligned with run-book)
+    - name: Metrics check
+      run: curl --fail http://localhost:9091/metrics | grep service_startups_total
+
+    # ➍ chat REST + WS (ports 8000 & 8765 - aligned with run-book)
+    - name: Chat round-trip
+      run: |
+        curl -s -X POST http://localhost:8000/chat \
+             -H 'Content-Type: application/json' \
+             -d '{"message":"Ping"}' \
+             | jq -e '.skill_type=="agent0"'
+        python tests/ws_smoke.py   # quick 1-msg WebSocket test
+
+    # ➎ run harmonized test script
+    - name: Run spiral smoke tests
+      run: |
+        chmod +x scripts/test_spiral.sh
+        ./scripts/test_spiral.sh
+
+    # ➏ check compose logs for errors
+    - name: Check service logs
+      if: failure()
+      run: |
+        echo "=== API Logs ==="
+        docker compose -f docker-compose.yml logs council-api
+        echo "=== WebSocket Logs ==="
+        docker compose -f docker-compose.yml logs websocket-chat
+        echo "=== Metrics Logs ==="
+        docker compose -f docker-compose.yml logs swarm-metrics

@@ -1,0 +1,88 @@
+groups:
+  - name: swarm_alerts
+    rules:
+      # 🚀 UPDATED: Refined Redis reply loss alert
+      - alert: ExecReplyLoss
+        expr: rate(os_exec_redis_err_total{error_type!="permission_denied"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "OS Executor Redis reply loss detected"
+          description: "Redis errors detected: {{ $value }}/sec over 5min window"
+
+      # 🚀 NEW: vLLM backpressure alert  
+      - alert: DraftBackPressure
+        expr: avg_over_time(vllm_inflight_pct[1m]) > 0.9
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "vLLM at capacity - backpressure active"
+          description: "vLLM inflight requests > 90% for 5+ minutes"
+
+      # Existing alerts
+      - alert: HighErrorRate
+        expr: rate(swarm_http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP error rate"
+          description: "Error rate is {{ $value }}/sec"
+
+      - alert: GPUMemoryHigh
+        expr: swarm_gpu_memory_used_mb > 10000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU memory usage high"
+          description: "GPU memory usage: {{ $value }}MB"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance is not responding"
+
+      # 🚀 NEW: Queue health alerts
+      - alert: QueueBacklogHigh
+        expr: os_exec_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OS executor queue backlog high"
+          description: "Queue depth: {{ $value }} jobs waiting"
+
+      - alert: ProcessingJobsStuck
+        expr: os_exec_processing_jobs > 50
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Processing jobs appear stuck"
+          description: "{{ $value }} jobs stuck in processing state"
+
+      # 🚀 NEW: Speculative decoding alerts
+      - alert: SpeculativeAcceptanceLow
+        expr: avg_over_time(vllm_draft_acceptance_rate[5m]) < 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low speculative decoding acceptance"
+          description: "Acceptance rate: {{ $value }}% (target: >50%)"
+
+      - alert: SpeculativeFallbackHigh
+        expr: rate(speculative_fallback_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High speculative fallback rate"
+          description: "Fallback rate: {{ $value }}/sec" 

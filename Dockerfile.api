@@ -1,0 +1,110 @@
+# ── Multi-stage Dockerfile for Autonomous Software Spiral API ──
+# Stage 1: Build llama.cpp with CUDA support
+FROM nvidia/cuda:12.4.0-devel-ubuntu22.04 AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    cmake \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and build llama.cpp with CUDA support
+RUN git clone --depth 1 https://github.com/ggerganov/llama.cpp /llama && \
+    cd /llama && \
+    cmake -S. -Bbuild \
+        -DLLAMA_CUBLAS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLLAMA_CUDA_F16=ON && \
+    cmake --build build -j $(nproc) && \
+    cp build/libllama.so /tmp/
+
+# Stage 2: Runtime environment with Python + vLLM + compiled llama.cpp
+FROM python:3.11-slim AS runtime
+
+# Environment variables for CUDA memory management
+ENV PYTHONUNBUFFERED=1 \
+    PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128 \
+    CUDA_VISIBLE_DEVICES=0 \
+    SWARM_GPU_PROFILE=rtx_4070
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for Autonomous Software Spiral
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    python -m pip install --no-cache-dir \
+        # Core API dependencies
+        fastapi==0.104.1 \
+        uvicorn[standard]==0.24.0 \
+        prometheus_client==0.19.0 \
+        redis==5.0.1 \
+        pydantic==2.5.0 \
+        # ML and inference backends
+        torch==2.1.1+cu121 \
+        torchvision==0.16.1+cu121 \
+        --index-url https://download.pytorch.org/whl/cu121 && \
+    python -m pip install --no-cache-dir \
+        # vLLM for GPU inference
+        vllm==0.2.4 \
+        # llama.cpp Python bindings
+        llama-cpp-python==0.2.24 \
+        # Transformers and model support
+        transformers==4.36.0 \
+        accelerate==0.25.0 \
+        sentencepiece==0.1.99 \
+        # Pattern mining and learning
+        sentence-transformers==2.2.2 \
+        hdbscan==0.8.33 \
+        scikit-learn==1.3.2 \
+        # Fine-tuning and LoRA
+        peft==0.7.1 \
+        datasets==2.15.0 \
+        # Caching and utilities
+        numpy==1.24.4 \
+        pandas==2.1.4 \
+        pyyaml==6.0.1 \
+        requests==2.31.0
+
+# Copy compiled llama.cpp library
+COPY --from=builder /tmp/libllama.so /usr/local/lib/
+RUN ldconfig
+
+# Create app directory structure
+WORKDIR /app
+
+# Copy application code with Autonomous Software Spiral components
+COPY ./app /app/
+COPY ./router_cascade.py /app/
+COPY ./loader /app/loader/
+COPY ./config /app/config/
+COPY ./cache /app/cache/
+COPY ./pattern_miner.py /app/
+COPY ./cost_tracker.py /app/
+COPY ./nightly_distiller.py /app/
+
+# Create necessary directories
+RUN mkdir -p /app/data/completions \
+             /app/data/costs \
+             /app/data/monitoring \
+             /app/data/experiments \
+             /app/patterns \
+             /app/models/distilled \
+             /app/logs
+
+# Create models volume mount point
+VOLUME ["/models"]
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:9000/health || exit 1
+
+# Expose API port
+EXPOSE 9000
+
+# Default command with hot-reload capability
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000", "--workers", "1", "--reload"] 

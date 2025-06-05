@@ -1,21 +1,21 @@
 {
   "total_suites": 12,
-  "passed_suites": 12,
-  "overall_pass_rate": 1.0,
+  "passed_suites": 10,
+  "overall_pass_rate": 0.8333333333333334,
   "ship_ready": {
-    "all_suites_green": true,
+    "all_suites_green": false,
     "no_alerts_soak": true,
     "readme_updated": true,
     "grafana_snapshot": true,
-    "ship_ready": true
+    "ship_ready": false
   },
   "suite_results": [
     {
       "suite": "smoke_tests",
-      "passed": true,
-      "pass_rate": 1.0,
+      "passed": false,
+      "pass_rate": 0.875,
       "total_tests": 8,
-      "passed_tests": 8,
+      "passed_tests": 7,
       "criterion": "100% pass required",
       "details": [
         {
@@ -24,7 +24,7 @@
         },
         {
           "test": "Basic chat functionality",
-          "passed": true
+          "passed": false
         },
         {
           "test": "Error handling",
@@ -55,52 +55,52 @@
     {
       "suite": "unit_tests",
       "passed": true,
-      "pass_rate": 0.9795918367346939,
+      "pass_rate": 0.9183673469387755,
       "total_tests": 147,
-      "passed_tests": 144,
+      "passed_tests": 135,
       "criterion": "\u226590% pass required"
     },
     {
       "suite": "performance_benchmark",
       "passed": true,
-      "tokens_per_sec": 23.361655145882068,
-      "p95_latency_ms": 734.7299481086321,
-      "avg_latency_ms": 406.01717826520604,
+      "tokens_per_sec": 20.63467741654255,
+      "p95_latency_ms": 710.561598434295,
+      "avg_latency_ms": 469.35499666516387,
       "criterion": "\u226517 tokens/s AND p95 \u2264800ms"
     },
     {
       "suite": "load_testing",
       "passed": true,
       "total_requests": 1000,
-      "failed_requests": 9,
-      "error_rate": 0.009,
-      "p99_latency_s": 1.6767185037966281,
+      "failed_requests": 5,
+      "error_rate": 0.005,
+      "p99_latency_s": 1.5858872225852247,
       "criterion": "\u22642% error rate AND p99 \u22642s"
     },
     {
       "suite": "soak_testing",
       "passed": true,
       "baseline_tps": 20.0,
-      "final_tps": 20.046705414132077,
-      "degradation": -0.002335270706603865,
+      "final_tps": 20.42613216525066,
+      "degradation": -0.02130660826253301,
       "criterion": "\u22643% performance degradation over 1 hour"
     },
     {
       "suite": "retrieval_accuracy",
       "passed": true,
       "total_queries": 200,
-      "hits": 174,
-      "hit_rate": 0.87,
-      "mrr": 0.8592671239161085,
+      "hits": 143,
+      "hit_rate": 0.715,
+      "mrr": 0.8572821679489867,
       "criterion": "\u226565% hit rate AND MRR \u22650.75"
     },
     {
       "suite": "chaos_testing",
-      "passed": true,
+      "passed": false,
       "total_scenarios": 5,
-      "recoveries": 5,
-      "recovery_rate": 1.0,
-      "max_recovery_time_s": 7.603626532237606,
+      "recoveries": 4,
+      "recovery_rate": 0.8,
+      "max_recovery_time_s": 7.153736344293118,
       "criterion": "\u226595% recovery AND \u226410s recovery time"
     },
     {
@@ -108,7 +108,7 @@
       "passed": true,
       "crashed": false,
       "degraded_gracefully": true,
-      "max_memory_gb": 3.9346374435687093,
+      "max_memory_gb": 3.9603664268486476,
       "criterion": "No crashes AND graceful degradation"
     },
     {
@@ -116,7 +116,7 @@
       "passed": true,
       "high_vulns": 0,
       "medium_vulns": 2,
-      "low_vulns": 9,
+      "low_vulns": 6,
       "criterion": "0 high/critical vulnerabilities"
     },
     {
@@ -138,8 +138,8 @@
     {
       "suite": "ux_checks",
       "passed": true,
-      "ux_rating": 4.6169478190010915,
-      "perceived_latency_s": 2.5070181973166723,
+      "ux_rating": 4.321330844497451,
+      "perceived_latency_s": 2.281033849892968,
       "criterion": "\u22654.0/5.0 rating AND \u22643s perceived latency"
     }
   ]

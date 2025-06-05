@@ -1,0 +1,83 @@
+groups:
+- name: chess_orchestrator_week3
+  rules:
+  # Week 3 Chess Orchestrator Guard Rails
+  - alert: LowMergeEfficiency
+    expr: (merge_events_total / moves_total) < 0.05
+    for: 5m
+    labels:
+      severity: warning
+      service: chess_orchestrator
+    annotations:
+      summary: "Chess merge efficiency below threshold"
+      description: "Merge efficiency is {{ $value | humanizePercentage }}, below 5% threshold. Risk: Low strategic value"
+
+  - alert: SpecialistBeforeRank16
+    expr: mixtral_generation_seconds_total > 0 and board_rank < 16
+    for: 1m
+    labels:
+      severity: warning
+      service: chess_orchestrator
+    annotations:
+      summary: "Specialist triggered too early"
+      description: "Mixtral specialist activated at board rank {{ $value }}, before rank 16 threshold. Risk: Premature optimization"
+
+  - alert: HighPatternMergeLatency
+    expr: histogram_quantile(0.95, pattern_merge_latency_ms_bucket) > 400
+    for: 2m
+    labels:
+      severity: warning
+      service: pattern_miner
+    annotations:
+      summary: "Pattern merge latency high"
+      description: "P95 pattern merge latency is {{ $value }}ms, above 400ms threshold. Risk: Slow pattern discovery"
+
+  - alert: VllmInflightOverload
+    expr: vllm_inflight_pct > 0.9
+    for: 30s
+    labels:
+      severity: critical
+      service: vllm_orchestrator
+    annotations:
+      summary: "vLLM inflight requests overloaded"
+      description: "vLLM inflight percentage at {{ $value | humanizePercentage }}, above 90% threshold. Risk: Queue saturation"
+
+  - alert: AgentVotingStalled
+    expr: histogram_quantile(0.95, agent_voting_rounds_bucket) > 5
+    for: 3m
+    labels:
+      severity: warning
+      service: agent_router
+    annotations:
+      summary: "Agent voting taking too many rounds"
+      description: "P95 voting rounds is {{ $value }}, above 5 rounds threshold. Risk: Consensus failure"
+
+  - alert: NoEarlyConsensus
+    expr: rate(agent_early_exit_total[10m]) < 0.1
+    for: 5m
+    labels:
+      severity: info
+      service: agent_router
+    annotations:
+      summary: "Low early consensus rate"
+      description: "Early consensus rate is {{ $value | humanizePercentage }}, below 10%. Info: May indicate diverse agent opinions"
+
+  - alert: ChessBoardStagnation
+    expr: increase(moves_total[5m]) == 0
+    for: 2m
+    labels:
+      severity: warning
+      service: chess_orchestrator
+    annotations:
+      summary: "Chess board activity stalled"
+      description: "No moves in the last 5 minutes. Risk: Strategic planning blocked"
+
+  - alert: PatternDiscoveryDown
+    expr: increase(pattern_discovery_total[10m]) == 0
+    for: 5m
+    labels:
+      severity: warning
+      service: pattern_miner
+    annotations:
+      summary: "Pattern discovery stalled"
+      description: "No new patterns discovered in 10 minutes. Risk: Learning stagnation" 

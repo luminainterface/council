@@ -1,626 +1,562 @@
 #!/usr/bin/env python3
 """
-Pattern Miner - Autonomous Learning Loop
-========================================
+Pattern Miner α-Launch - Week 3 Strategic Orchestration
+======================================================
 
-Ingest successful completions, cluster with MiniLM & HDBSCAN, 
-derive route rules, and create synthetic specialists.
+Batch embed + HDBSCAN every 6h to discover task patterns.
+Writes pattern:{sha} into Redis for router cache optimization.
 
-Goal: Cut another 20-30% of cloud usage by learning patterns.
+Key Features:
+- HDBSCAN clustering on sentence embeddings  
+- Pattern discovery and merging
+- Redis caching for fast lookups
+- Prometheus metrics integration
 """
 
-import os
-import json
-import time
-import logging
+import asyncio
 import hashlib
-import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
-from pathlib import Path
-import re
+import json
+import logging
+import time
+import os
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, asdict
 
-# ML libraries for clustering
+import numpy as np
+import redis
+
+# Optional dependencies for production
 try:
-    from sentence_transformers import SentenceTransformer
     import hdbscan
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    ML_AVAILABLE = True
-except ImportError as e:
-    SentenceTransformer = None
-    hdbscan = None
-    TfidfVectorizer = None
-    ML_AVAILABLE = False
-    print(f"⚠️ ML libraries not available: {e}")
-    print("Install with: pip install sentence-transformers hdbscan scikit-learn")
+    from sentence_transformers import SentenceTransformer
+    CLUSTERING_AVAILABLE = True
+except ImportError:
+    CLUSTERING_AVAILABLE = False
+
+# Prometheus metrics
+try:
+    from prometheus_client import Counter, Gauge, Histogram
+    PATTERN_MERGE_TOTAL = Counter("pattern_merge_total", "Total pattern merges")
+    PATTERN_DISCOVERY_TOTAL = Counter("pattern_discovery_total", "Total patterns discovered")
+    PATTERN_CACHE_HITS = Counter("pattern_cache_hits_total", "Pattern cache hits")
+    PATTERN_EMBEDDINGS_TOTAL = Counter("pattern_embeddings_total", "Total embeddings computed")
+    PATTERN_MERGE_LATENCY = Histogram("pattern_merge_latency_ms", "Pattern merge latency")
+    PATTERN_CLUSTER_COUNT = Gauge("pattern_cluster_count", "Current number of clusters")
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
-# Configuration
-MIN_CLUSTER_SIZE = 2      # Minimum prompts to form a cluster (reduced for testing)
-MIN_CONFIDENCE = 0.7      # Minimum confidence for pattern extraction
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Lightweight sentence transformer
-PATTERN_CACHE_FILE = "patterns/learned_patterns.json"
-COMPLETIONS_DIR = "data/completions"
-SYNTHETIC_SPECIALISTS_FILE = "patterns/synthetic_specialists.py"
-
 @dataclass
-class CompletionRecord:
-    """Record of a successful completion"""
-    prompt: str
-    response: str
+class TaskPattern:
+    """Represents a discovered task pattern"""
+    pattern_id: str
+    pattern_type: str
+    intent_signature: str
+    example_tasks: List[str]
+    embedding_centroid: List[float]
     confidence: float
-    model_used: str
-    timestamp: float
-    cost_usd: float = 0.0
-    session_id: str = ""
+    cluster_size: int
+    discovered_at: datetime
+    merge_count: int = 0
 
-@dataclass
-class PatternCluster:
-    """A discovered pattern cluster"""
-    cluster_id: int
-    prompts: List[str]
-    responses: List[str]
-    keywords: List[str]
-    route_rule: str
-    template_response: str
-    confidence: float
-    usage_count: int = 0
+    def to_redis_value(self) -> str:
+        """Serialize for Redis storage"""
+        data = asdict(self)
+        data['discovered_at'] = self.discovered_at.isoformat()
+        return json.dumps(data)
+    
+    @classmethod
+    def from_redis_value(cls, value: str) -> 'TaskPattern':
+        """Deserialize from Redis"""
+        data = json.loads(value)
+        data['discovered_at'] = datetime.fromisoformat(data['discovered_at'])
+        return cls(**data)
 
 class PatternMiner:
     """
-    Pattern Mining and Synthetic Specialist Generator
+    Strategic pattern discovery system for Week 3 orchestration
+    
+    Discovers task patterns using HDBSCAN clustering and caches them
+    in Redis for fast router optimization.
     """
     
-    def __init__(self):
+    def __init__(self, 
+                 redis_url: str = "redis://localhost:6379/0",
+                 model_name: str = "all-MiniLM-L6-v2",
+                 min_cluster_size: int = 3,
+                 batch_interval_hours: int = 6):
         """Initialize the pattern miner"""
-        self.embedder = None
-        self.clusters: List[PatternCluster] = []
-        self.vectorizer = None
-        self.ml_available = ML_AVAILABLE  # Store as instance variable
         
-        # Initialize ML models if available
-        if self.ml_available:
+        self.redis_url = redis_url
+        self.model_name = model_name
+        self.min_cluster_size = min_cluster_size
+        self.batch_interval_hours = batch_interval_hours
+        
+        # Initialize components
+        self.redis_client = None
+        self.embedding_model = None
+        self.clusterer = None
+        
+        # State tracking
+        self.last_mining_time = None
+        self.discovered_patterns: Dict[str, TaskPattern] = {}
+        self.running = False
+        
+        if not CLUSTERING_AVAILABLE:
+            logger.warning("⚠️ HDBSCAN/SentenceTransformers not available - using mock patterns")
+    
+    async def initialize(self):
+        """Initialize Redis connection and models"""
+        try:
+            # Connect to Redis
+            self.redis_client = redis.from_url(self.redis_url, decode_responses=True)
+            self.redis_client.ping()
+            logger.info(f"✅ Pattern Miner connected to Redis: {self.redis_url}")
+            
+            # Load embedding model
+            if CLUSTERING_AVAILABLE:
+                self.embedding_model = SentenceTransformer(self.model_name)
+                self.clusterer = hdbscan.HDBSCAN(
+                    min_cluster_size=self.min_cluster_size,
+                    min_samples=2,
+                    metric='cosine'
+                )
+                logger.info(f"✅ Embedding model loaded: {self.model_name}")
+            
+            # Load existing patterns from Redis
+            await self._load_existing_patterns()
+            
+        except Exception as e:
+            logger.error(f"❌ Pattern Miner initialization failed: {e}")
+            raise
+    
+    async def _load_existing_patterns(self):
+        """Load existing patterns from Redis cache"""
+        try:
+            pattern_keys = self.redis_client.keys("pattern:*")
+            
+            for key in pattern_keys:
+                pattern_data = self.redis_client.get(key)
+                if pattern_data:
+                    pattern = TaskPattern.from_redis_value(pattern_data)
+                    self.discovered_patterns[pattern.pattern_id] = pattern
+            
+            logger.info(f"📊 Loaded {len(self.discovered_patterns)} existing patterns from cache")
+            
+            if PROMETHEUS_AVAILABLE:
+                PATTERN_CLUSTER_COUNT.set(len(self.discovered_patterns))
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load existing patterns: {e}")
+    
+    async def start_mining_loop(self):
+        """Start the 6-hour batch mining loop"""
+        if not self.redis_client:
+            await self.initialize()
+        
+        self.running = True
+        logger.info("🚀 Pattern Miner α-launch started")
+        logger.info(f"   Batch interval: {self.batch_interval_hours}h")
+        logger.info(f"   Min cluster size: {self.min_cluster_size}")
+        
+        while self.running:
             try:
-                self.embedder = SentenceTransformer(EMBEDDING_MODEL)
-                self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-                logger.info(f"🧠 Pattern miner initialized with {EMBEDDING_MODEL}")
+                await self._run_mining_batch()
+                
+                # Wait for next batch
+                sleep_seconds = self.batch_interval_hours * 3600
+                logger.info(f"⏰ Next mining batch in {self.batch_interval_hours}h")
+                await asyncio.sleep(sleep_seconds)
+                
             except Exception as e:
-                logger.warning(f"🧠 ML model loading failed: {e}")
-                self.ml_available = False
-        
-        # Ensure directories exist
-        os.makedirs("patterns", exist_ok=True)
-        os.makedirs("data/completions", exist_ok=True)
-        
-    def ingest_completions(self, sources: List[str]) -> List[CompletionRecord]:
-        """
-        Ingest successful completions from various sources.
-        
-        Args:
-            sources: List of source paths (files, directories)
-            
-        Returns:
-            List of completion records
-        """
-        completions = []
-        
-        for source in sources:
-            if os.path.isfile(source):
-                completions.extend(self._ingest_file(source))
-            elif os.path.isdir(source):
-                completions.extend(self._ingest_directory(source))
-            else:
-                logger.warning(f"🧠 Source not found: {source}")
-                
-        logger.info(f"🧠 Ingested {len(completions)} completion records")
-        return completions
+                logger.error(f"❌ Mining batch failed: {e}")
+                # Continue with shorter interval on error
+                await asyncio.sleep(300)  # 5 minutes
     
-    def _ingest_file(self, filepath: str) -> List[CompletionRecord]:
-        """Ingest completions from a single file"""
-        completions = []
+    async def _run_mining_batch(self):
+        """Run a single pattern mining batch"""
+        start_time = time.time()
+        logger.info("🔍 Starting pattern mining batch...")
+        
+        # 1. Collect recent tasks
+        tasks = await self._collect_recent_tasks()
+        if len(tasks) < self.min_cluster_size:
+            logger.info(f"⏳ Only {len(tasks)} tasks collected, skipping batch")
+            return
+        
+        # 2. Generate embeddings
+        embeddings = await self._generate_embeddings(tasks)
+        
+        # 3. Discover patterns via clustering
+        new_patterns = await self._discover_patterns(tasks, embeddings)
+        
+        # 4. Merge with existing patterns
+        merged_count = await self._merge_patterns(new_patterns)
+        
+        # 5. Update Redis cache
+        await self._update_pattern_cache()
+        
+        batch_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ Mining batch complete: {len(new_patterns)} new, {merged_count} merged ({batch_time:.1f}ms)")
+        
+        if PROMETHEUS_AVAILABLE:
+            PATTERN_MERGE_LATENCY.observe(batch_time)
+            PATTERN_DISCOVERY_TOTAL.inc(len(new_patterns))
+            PATTERN_MERGE_TOTAL.inc(merged_count)
+    
+    async def _collect_recent_tasks(self) -> List[str]:
+        """Collect recent tasks from various sources"""
+        tasks = []
         
         try:
-            if filepath.endswith('.json'):
-                completions.extend(self._parse_json_completions(filepath))
-            elif filepath.endswith('.md'):
-                completions.extend(self._parse_markdown_completions(filepath))
-            elif filepath.endswith('.txt'):
-                completions.extend(self._parse_text_completions(filepath))
-            else:
-                logger.debug(f"🧠 Unknown file type: {filepath}")
-                
+            # Collect from Redis logs
+            log_keys = self.redis_client.keys("swarm:log:*")
+            
+            for key in log_keys[-100:]:  # Last 100 log entries
+                log_data = self.redis_client.get(key)
+                if log_data:
+                    try:
+                        log_entry = json.loads(log_data)
+                        if 'prompt' in log_entry:
+                            tasks.append(log_entry['prompt'])
+                    except json.JSONDecodeError:
+                        continue
+            
+            # Mock tasks for development (remove in production)
+            if len(tasks) < 10:
+                mock_tasks = [
+                    "create file config.json with settings",
+                    "install package numpy for data analysis", 
+                    "restart nginx service after config change",
+                    "write data to output.csv file",
+                    "check system status and memory usage",
+                    "update package list and install security updates",
+                    "create backup of database files",
+                    "restart postgresql service",
+                    "install pip package requests for API calls",
+                    "write log entry to application.log"
+                ]
+                tasks.extend(mock_tasks)
+            
+            logger.info(f"📊 Collected {len(tasks)} tasks for pattern analysis")
+            return tasks[:100]  # Limit batch size
+            
         except Exception as e:
-            logger.error(f"🧠 Error ingesting {filepath}: {e}")
-            
-        return completions
+            logger.error(f"❌ Task collection failed: {e}")
+            return []
     
-    def _ingest_directory(self, dirpath: str) -> List[CompletionRecord]:
-        """Ingest completions from all files in directory"""
-        completions = []
-        
-        for root, dirs, files in os.walk(dirpath):
-            for file in files:
-                if file.endswith(('.json', '.md', '.txt')):
-                    filepath = os.path.join(root, file)
-                    completions.extend(self._ingest_file(filepath))
-                    
-        return completions
-    
-    def _parse_json_completions(self, filepath: str) -> List[CompletionRecord]:
-        """Parse JSON completion records"""
-        completions = []
+    async def _generate_embeddings(self, tasks: List[str]) -> np.ndarray:
+        """Generate embeddings for task list"""
+        if not CLUSTERING_AVAILABLE:
+            # Mock embeddings for development
+            return np.random.rand(len(tasks), 384)
         
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-            # Handle different JSON formats
-            if isinstance(data, list):
-                for item in data:
-                    completion = self._parse_completion_item(item)
-                    if completion:
-                        completions.append(completion)
-            elif isinstance(data, dict):
-                completion = self._parse_completion_item(data)
-                if completion:
-                    completions.append(completion)
-                    
+            embeddings = self.embedding_model.encode(tasks)
+            
+            if PROMETHEUS_AVAILABLE:
+                PATTERN_EMBEDDINGS_TOTAL.inc(len(tasks))
+            
+            logger.info(f"🧠 Generated {len(embeddings)} embeddings ({embeddings.shape[1]}D)")
+            return embeddings
+            
         except Exception as e:
-            logger.error(f"🧠 JSON parse error {filepath}: {e}")
-            
-        return completions
+            logger.error(f"❌ Embedding generation failed: {e}")
+            return np.random.rand(len(tasks), 384)  # Fallback
     
-    def _parse_markdown_completions(self, filepath: str) -> List[CompletionRecord]:
-        """Parse markdown files with Q&A patterns"""
-        completions = []
+    async def _discover_patterns(self, tasks: List[str], embeddings: np.ndarray) -> List[TaskPattern]:
+        """Discover patterns using HDBSCAN clustering"""
+        if not CLUSTERING_AVAILABLE:
+            # Mock pattern discovery
+            return self._create_mock_patterns(tasks)
         
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            # Simple regex to find Q&A patterns
-            qa_pattern = r'(?:Q:|Question:|User:)\s*(.+?)\n(?:A:|Answer:|Assistant:)\s*(.+?)(?=\n(?:Q:|Question:|User:)|\Z)'
-            matches = re.findall(qa_pattern, content, re.DOTALL | re.IGNORECASE)
+            # Run HDBSCAN clustering
+            cluster_labels = self.clusterer.fit_predict(embeddings)
             
-            for prompt, response in matches:
-                completion = CompletionRecord(
-                    prompt=prompt.strip(),
-                    response=response.strip(),
-                    confidence=0.8,  # Default for manual Q&A
-                    model_used="manual",
-                    timestamp=time.time()
-                )
-                completions.append(completion)
-                
-        except Exception as e:
-            logger.error(f"🧠 Markdown parse error {filepath}: {e}")
+            patterns = []
+            unique_labels = set(cluster_labels)
             
-        return completions
-    
-    def _parse_text_completions(self, filepath: str) -> List[CompletionRecord]:
-        """Parse plain text files with simple patterns"""
-        completions = []
-        
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+            for label in unique_labels:
+                if label == -1:  # Noise cluster
+                    continue
                 
-            # Simple pattern: alternating prompt/response lines
-            for i in range(0, len(lines) - 1, 2):
-                prompt = lines[i].strip()
-                response = lines[i + 1].strip() if i + 1 < len(lines) else ""
+                # Get tasks in this cluster
+                cluster_mask = cluster_labels == label
+                cluster_tasks = [tasks[i] for i in range(len(tasks)) if cluster_mask[i]]
+                cluster_embeddings = embeddings[cluster_mask]
                 
-                if prompt and response:
-                    completion = CompletionRecord(
-                        prompt=prompt,
-                        response=response,
-                        confidence=0.7,  # Default for text files
-                        model_used="text",
-                        timestamp=time.time()
-                    )
-                    completions.append(completion)
-                    
-        except Exception as e:
-            logger.error(f"🧠 Text parse error {filepath}: {e}")
-            
-        return completions
-    
-    def _parse_completion_item(self, item: Dict) -> Optional[CompletionRecord]:
-        """Parse a single completion item from JSON"""
-        try:
-            # Handle different JSON schemas
-            prompt = item.get('prompt') or item.get('input') or item.get('question')
-            response = item.get('response') or item.get('output') or item.get('answer')
-            confidence = item.get('confidence', 0.8)
-            model = item.get('model', 'unknown')
-            timestamp = item.get('timestamp', time.time())
-            
-            if prompt and response:
-                return CompletionRecord(
-                    prompt=str(prompt).strip(),
-                    response=str(response).strip(),
-                    confidence=float(confidence),
-                    model_used=str(model),
-                    timestamp=float(timestamp)
+                if len(cluster_tasks) < self.min_cluster_size:
+                    continue
+                
+                # Compute centroid
+                centroid = np.mean(cluster_embeddings, axis=0)
+                
+                # Generate pattern
+                pattern = TaskPattern(
+                    pattern_id=self._generate_pattern_id(cluster_tasks),
+                    pattern_type=self._classify_pattern_type(cluster_tasks),
+                    intent_signature=self._extract_intent_signature(cluster_tasks),
+                    example_tasks=cluster_tasks[:5],  # Keep top 5 examples
+                    embedding_centroid=centroid.tolist(),
+                    confidence=self._calculate_pattern_confidence(cluster_tasks, cluster_embeddings),
+                    cluster_size=len(cluster_tasks),
+                    discovered_at=datetime.now()
                 )
                 
-        except Exception as e:
-            logger.debug(f"🧠 Item parse error: {e}")
+                patterns.append(pattern)
             
+            logger.info(f"🔍 Discovered {len(patterns)} patterns from {len(unique_labels)-1} clusters")
+            return patterns
+            
+        except Exception as e:
+            logger.error(f"❌ Pattern discovery failed: {e}")
+            return []
+    
+    def _create_mock_patterns(self, tasks: List[str]) -> List[TaskPattern]:
+        """Create mock patterns for development"""
+        patterns = []
+        
+        # File operations pattern
+        file_tasks = [t for t in tasks if any(word in t.lower() for word in ['file', 'create', 'write'])]
+        if len(file_tasks) >= 2:
+            patterns.append(TaskPattern(
+                pattern_id="file_ops_001",
+                pattern_type="file_operations",
+                intent_signature="os_file_*",
+                example_tasks=file_tasks[:3],
+                embedding_centroid=[0.1] * 384,
+                confidence=0.85,
+                cluster_size=len(file_tasks),
+                discovered_at=datetime.now()
+            ))
+        
+        # Package management pattern  
+        pkg_tasks = [t for t in tasks if any(word in t.lower() for word in ['install', 'package', 'pip'])]
+        if len(pkg_tasks) >= 2:
+            patterns.append(TaskPattern(
+                pattern_id="pkg_mgmt_001", 
+                pattern_type="package_management",
+                intent_signature="package_install",
+                example_tasks=pkg_tasks[:3],
+                embedding_centroid=[0.2] * 384,
+                confidence=0.78,
+                cluster_size=len(pkg_tasks),
+                discovered_at=datetime.now()
+            ))
+        
+        return patterns
+    
+    def _generate_pattern_id(self, tasks: List[str]) -> str:
+        """Generate unique pattern ID from task content"""
+        content = "|".join(sorted(tasks))
+        hash_obj = hashlib.sha256(content.encode())
+        return f"pattern_{hash_obj.hexdigest()[:12]}"
+    
+    def _classify_pattern_type(self, tasks: List[str]) -> str:
+        """Classify pattern type based on task content"""
+        combined = " ".join(tasks).lower()
+        
+        if any(word in combined for word in ['file', 'create', 'write', 'read']):
+            return "file_operations"
+        elif any(word in combined for word in ['install', 'package', 'pip', 'apt']):
+            return "package_management"
+        elif any(word in combined for word in ['restart', 'service', 'systemctl']):
+            return "service_management"
+        elif any(word in combined for word in ['status', 'check', 'monitor']):
+            return "system_monitoring"
+        else:
+            return "general"
+    
+    def _extract_intent_signature(self, tasks: List[str]) -> str:
+        """Extract intent signature from task cluster"""
+        pattern_type = self._classify_pattern_type(tasks)
+        
+        signatures = {
+            "file_operations": "os_file_*",
+            "package_management": "package_install", 
+            "service_management": "service_restart",
+            "system_monitoring": "system_info",
+            "general": "general"
+        }
+        
+        return signatures.get(pattern_type, "general")
+    
+    def _calculate_pattern_confidence(self, tasks: List[str], embeddings: np.ndarray) -> float:
+        """Calculate confidence score for pattern"""
+        if len(tasks) < 2:
+            return 0.5
+        
+        # Simple confidence based on cluster size and cohesion
+        size_score = min(len(tasks) / 10.0, 1.0)
+        
+        # Compute cohesion (average pairwise similarity)
+        if CLUSTERING_AVAILABLE and len(embeddings) > 1:
+            from sklearn.metrics.pairwise import cosine_similarity
+            similarities = cosine_similarity(embeddings)
+            cohesion = np.mean(similarities[np.triu_indices_from(similarities, k=1)])
+        else:
+            cohesion = 0.7  # Mock cohesion
+        
+        confidence = (size_score * 0.3) + (cohesion * 0.7)
+        return min(confidence, 0.95)
+    
+    async def _merge_patterns(self, new_patterns: List[TaskPattern]) -> int:
+        """Merge new patterns with existing ones"""
+        merged_count = 0
+        
+        for new_pattern in new_patterns:
+            # Check for similar existing patterns
+            similar_pattern = self._find_similar_pattern(new_pattern)
+            
+            if similar_pattern:
+                # Merge patterns
+                await self._merge_pattern_pair(similar_pattern, new_pattern)
+                merged_count += 1
+            else:
+                # Add as new pattern
+                self.discovered_patterns[new_pattern.pattern_id] = new_pattern
+        
+        return merged_count
+    
+    def _find_similar_pattern(self, pattern: TaskPattern) -> Optional[TaskPattern]:
+        """Find similar existing pattern for merging"""
+        for existing_pattern in self.discovered_patterns.values():
+            # Check type similarity
+            if existing_pattern.pattern_type == pattern.pattern_type:
+                # Check intent similarity  
+                if existing_pattern.intent_signature == pattern.intent_signature:
+                    return existing_pattern
+        
         return None
     
-    def cluster_prompts(self, completions: List[CompletionRecord]) -> List[PatternCluster]:
-        """
-        Cluster prompts using MiniLM embeddings and HDBSCAN.
+    async def _merge_pattern_pair(self, existing: TaskPattern, new: TaskPattern):
+        """Merge two similar patterns"""
+        # Combine example tasks (keep unique)
+        combined_tasks = list(set(existing.example_tasks + new.example_tasks))[:10]
         
-        Args:
-            completions: List of completion records
-            
-        Returns:
-            List of pattern clusters
-        """
-        if not self.ml_available or not self.embedder:
-            logger.warning("🧠 ML not available - using simple keyword clustering")
-            return self._simple_keyword_clustering(completions)
-            
-        logger.info(f"🧠 Clustering {len(completions)} prompts with MiniLM + HDBSCAN...")
+        # Weighted centroid merge
+        total_size = existing.cluster_size + new.cluster_size
+        existing_weight = existing.cluster_size / total_size
+        new_weight = new.cluster_size / total_size
         
-        # Extract prompts and generate embeddings
-        prompts = [c.prompt for c in completions]
-        try:
-            embeddings = self.embedder.encode(prompts)
-            logger.info(f"🧠 Generated {embeddings.shape} embeddings")
-        except Exception as e:
-            logger.error(f"🧠 Embedding generation failed: {e}")
-            return self._simple_keyword_clustering(completions)
-        
-        # Cluster with HDBSCAN
-        try:
-            clusterer = hdbscan.HDBSCAN(
-                min_cluster_size=MIN_CLUSTER_SIZE,
-                metric='euclidean',  # Use euclidean instead of cosine
-                cluster_selection_epsilon=0.1
-            )
-            cluster_labels = clusterer.fit_predict(embeddings)
-            
-            n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
-            logger.info(f"🧠 Found {n_clusters} clusters, {list(cluster_labels).count(-1)} noise points")
-            
-        except Exception as e:
-            logger.error(f"🧠 HDBSCAN clustering failed: {e}")
-            return self._simple_keyword_clustering(completions)
-        
-        # Build pattern clusters
-        clusters = []
-        cluster_dict = {}
-        
-        for i, label in enumerate(cluster_labels):
-            if label == -1:  # Noise point
-                continue
-                
-            if label not in cluster_dict:
-                cluster_dict[label] = {
-                    'prompts': [],
-                    'responses': [],
-                    'completions': []
-                }
-                
-            cluster_dict[label]['prompts'].append(completions[i].prompt)
-            cluster_dict[label]['responses'].append(completions[i].response)
-            cluster_dict[label]['completions'].append(completions[i])
-        
-        # Generate cluster metadata
-        for cluster_id, data in cluster_dict.items():
-            pattern_cluster = self._analyze_cluster(cluster_id, data)
-            if pattern_cluster:
-                clusters.append(pattern_cluster)
-        
-        logger.info(f"🧠 Generated {len(clusters)} pattern clusters")
-        return clusters
-    
-    def _simple_keyword_clustering(self, completions: List[CompletionRecord]) -> List[PatternCluster]:
-        """Fallback clustering using simple keyword matching"""
-        logger.info("🧠 Using simple keyword clustering (fallback)")
-        
-        keyword_groups = {
-            'math': ['calculate', 'compute', '+', '-', '*', '/', 'math', 'equation'],
-            'code': ['function', 'code', 'python', 'javascript', 'programming', 'def '],
-            'logic': ['proof', 'logic', 'reasoning', 'because', 'therefore'],
-            'knowledge': ['explain', 'what is', 'how does', 'describe', 'define']
-        }
-        
-        clusters = []
-        cluster_dict = {}
-        
-        for completion in completions:
-            prompt_lower = completion.prompt.lower()
-            cluster_id = 'other'
-            
-            # Find best matching keyword group
-            max_matches = 0
-            for group_name, keywords in keyword_groups.items():
-                matches = sum(1 for kw in keywords if kw in prompt_lower)
-                if matches > max_matches:
-                    max_matches = matches
-                    cluster_id = group_name
-            
-            if cluster_id not in cluster_dict:
-                cluster_dict[cluster_id] = {
-                    'prompts': [],
-                    'responses': [],
-                    'completions': []
-                }
-                
-            cluster_dict[cluster_id]['prompts'].append(completion.prompt)
-            cluster_dict[cluster_id]['responses'].append(completion.response)
-            cluster_dict[cluster_id]['completions'].append(completion)
-        
-        # Convert to pattern clusters
-        for i, (cluster_name, data) in enumerate(cluster_dict.items()):
-            logger.debug(f"🧠 Cluster '{cluster_name}': {len(data['prompts'])} prompts")
-            if len(data['prompts']) >= MIN_CLUSTER_SIZE:
-                pattern_cluster = self._analyze_cluster(i, data, cluster_name)
-                if pattern_cluster:
-                    clusters.append(pattern_cluster)
-                    logger.debug(f"🧠 Created pattern cluster {i} for '{cluster_name}'")
-        
-        return clusters
-    
-    def _analyze_cluster(self, cluster_id: int, data: Dict, cluster_name: str = None) -> Optional[PatternCluster]:
-        """Analyze a cluster to extract patterns and create synthetic specialist"""
-        prompts = data['prompts']
-        responses = data['responses']
-        
-        if len(prompts) < MIN_CLUSTER_SIZE:
-            return None
-            
-        # Extract keywords (simple TF-IDF approach)
-        try:
-            if self.vectorizer:
-                tfidf_matrix = self.vectorizer.fit_transform(prompts)
-                feature_names = self.vectorizer.get_feature_names_out()
-                scores = tfidf_matrix.sum(axis=0).A1
-                top_indices = scores.argsort()[-10:][::-1]
-                keywords = [feature_names[i] for i in top_indices]
-            else:
-                # Simple word frequency fallback
-                word_freq = {}
-                for prompt in prompts:
-                    for word in prompt.lower().split():
-                        word = re.sub(r'[^a-z]', '', word)
-                        if len(word) > 3:
-                            word_freq[word] = word_freq.get(word, 0) + 1
-                keywords = sorted(word_freq.keys(), key=word_freq.get, reverse=True)[:10]
-        except Exception as e:
-            logger.debug(f"🧠 Keyword extraction failed: {e}")
-            keywords = []
-        
-        # Generate route rule (regex pattern)
-        route_rule = self._generate_route_rule(keywords, prompts)
-        
-        # Create template response (median good answer)
-        template_response = self._create_template_response(responses)
-        
-        # Calculate cluster confidence
-        confidence = min(0.9, 0.6 + len(prompts) * 0.05)  # More prompts = higher confidence
-        
-        return PatternCluster(
-            cluster_id=cluster_id,
-            prompts=prompts,
-            responses=responses,
-            keywords=keywords,
-            route_rule=route_rule,
-            template_response=template_response,
-            confidence=confidence
-        )
-    
-    def _generate_route_rule(self, keywords: List[str], prompts: List[str]) -> str:
-        """Generate a regex route rule for this pattern"""
-        if not keywords:
-            return r".*"
-            
-        # Create a regex that matches any of the top keywords
-        escaped_keywords = [re.escape(kw) for kw in keywords[:5]]
-        rule = r'\b(' + '|'.join(escaped_keywords) + r')\b'
-        
-        return rule
-    
-    def _create_template_response(self, responses: List[str]) -> str:
-        """Create a template response from the cluster responses"""
-        if not responses:
-            return "I can help with that."
-            
-        # Simple approach: find the median-length response
-        responses_by_length = sorted(responses, key=len)
-        median_idx = len(responses_by_length) // 2
-        template = responses_by_length[median_idx]
-        
-        # Clean up the template
-        template = template.strip()
-        if len(template) > 200:
-            template = template[:200] + "..."
-            
-        return template
-    
-    def generate_synthetic_specialists(self, clusters: List[PatternCluster]) -> str:
-        """
-        Generate Python code for synthetic specialists.
-        
-        Args:
-            clusters: List of pattern clusters
-            
-        Returns:
-            Python code string for synthetic specialists
-        """
-        code_lines = [
-            "#!/usr/bin/env python3",
-            '"""',
-            'Synthetic Specialists - Auto-generated from Pattern Mining',
-            'These specialists handle common patterns learned from user interactions.',
-            'Generated at: ' + time.strftime('%Y-%m-%d %H:%M:%S'),
-            '"""',
-            '',
-            'import re',
-            'import time',
-            'from typing import Optional, Dict, Any',
-            '',
-            'class PatternSpecialist:',
-            '    """Base class for pattern-based specialists"""',
-            '    ',
-            '    def __init__(self, cluster_id: int, route_rule: str, template: str, confidence: float):',
-            '        self.cluster_id = cluster_id',
-            '        self.route_rule = re.compile(route_rule, re.IGNORECASE)',
-            '        self.template = template',
-            '        self.confidence = confidence',
-            '        self.usage_count = 0',
-            '    ',
-            '    def match(self, prompt: str) -> bool:',
-            '        """Check if this specialist can handle the prompt"""',
-            '        return bool(self.route_rule.search(prompt))',
-            '    ',
-            '    def respond(self, prompt: str) -> Dict[str, Any]:',
-            '        """Generate response for matching prompt"""',
-            '        if not self.match(prompt):',
-            '            return {"text": "UNSURE", "confidence": 0.0}',
-            '        ',
-            '        self.usage_count += 1',
-            '        return {',
-            '            "text": self.template,',
-            '            "confidence": self.confidence,',
-            '            "model": f"pattern_specialist_{self.cluster_id}",',
-            '            "pattern_match": True,',
-            '            "usage_count": self.usage_count',
-            '        }',
-            '',
-            '# Generated pattern specialists',
+        merged_centroid = [
+            existing_weight * existing.embedding_centroid[i] + new_weight * new.embedding_centroid[i]
+            for i in range(len(existing.embedding_centroid))
         ]
         
-        # Add specialist instances
-        specialist_instances = []
-        for cluster in clusters:
-            if cluster.confidence >= MIN_CONFIDENCE:
-                instance_name = f"pattern_{cluster.cluster_id}"
-                specialist_instances.append(instance_name)
+        # Update existing pattern
+        existing.example_tasks = combined_tasks
+        existing.embedding_centroid = merged_centroid
+        existing.cluster_size = total_size
+        existing.confidence = max(existing.confidence, new.confidence)
+        existing.merge_count += 1
+        
+        logger.info(f"🔗 Merged patterns: {existing.pattern_id} (confidence: {existing.confidence:.3f})")
+    
+    async def _update_pattern_cache(self):
+        """Update Redis cache with current patterns"""
+        try:
+            pipe = self.redis_client.pipeline()
+            
+            for pattern in self.discovered_patterns.values():
+                key = f"pattern:{pattern.pattern_id}"
+                pipe.set(key, pattern.to_redis_value())
+                pipe.expire(key, 86400 * 7)  # 1 week TTL
+            
+            pipe.execute()
+            
+            if PROMETHEUS_AVAILABLE:
+                PATTERN_CLUSTER_COUNT.set(len(self.discovered_patterns))
+            
+            logger.info(f"💾 Updated {len(self.discovered_patterns)} patterns in Redis cache")
+            
+        except Exception as e:
+            logger.error(f"❌ Cache update failed: {e}")
+    
+    async def get_pattern_for_task(self, task: str) -> Optional[TaskPattern]:
+        """Get matching pattern for a task (router integration)"""
+        if not CLUSTERING_AVAILABLE:
+            # Simple keyword matching for development
+            task_lower = task.lower()
+            
+            for pattern in self.discovered_patterns.values():
+                if any(word in task_lower for word in pattern.intent_signature.split("_")):
+                    if PROMETHEUS_AVAILABLE:
+                        PATTERN_CACHE_HITS.inc()
+                    return pattern
+            
+            return None
+        
+        try:
+            # Generate embedding for task
+            task_embedding = self.embedding_model.encode([task])[0]
+            
+            # Find best matching pattern
+            best_pattern = None
+            best_similarity = 0.0
+            
+            for pattern in self.discovered_patterns.values():
+                centroid = np.array(pattern.embedding_centroid)
+                similarity = np.dot(task_embedding, centroid) / (
+                    np.linalg.norm(task_embedding) * np.linalg.norm(centroid)
+                )
                 
-                code_lines.extend([
-                    f'{instance_name} = PatternSpecialist(',
-                    f'    cluster_id={cluster.cluster_id},',
-                    f'    route_rule=r"{cluster.route_rule}",',
-                    f'    template="""{cluster.template_response}""",',
-                    f'    confidence={cluster.confidence:.2f}',
-                    ')',
-                    ''
-                ])
-        
-        # Add pattern matching function
-        code_lines.extend([
-            'def pattern_specialist(prompt: str) -> Dict[str, Any]:',
-            '    """',
-            '    Main pattern specialist function for router integration.',
-            '    Returns response if pattern matches, "UNSURE" otherwise.',
-            '    """',
-            '    specialists = [' + ', '.join(specialist_instances) + ']',
-            '    ',
-            '    for specialist in specialists:',
-            '        if specialist.match(prompt):',
-            '            return specialist.respond(prompt)',
-            '    ',
-            '    return {"text": "UNSURE", "confidence": 0.0}',
-            '',
-            '# Statistics',
-            f'PATTERN_COUNT = {len(specialist_instances)}',
-            f'GENERATED_AT = "{time.strftime("%Y-%m-%d %H:%M:%S")}"',
-        ])
-        
-        return '\n'.join(code_lines)
-    
-    def save_patterns(self, clusters: List[PatternCluster]) -> None:
-        """Save learned patterns to JSON file"""
-        pattern_data = {
-            'generated_at': time.time(),
-            'pattern_count': len(clusters),
-            'clusters': []
-        }
-        
-        for cluster in clusters:
-            cluster_data = {
-                'cluster_id': cluster.cluster_id,
-                'keywords': cluster.keywords,
-                'route_rule': cluster.route_rule,
-                'template_response': cluster.template_response,
-                'confidence': cluster.confidence,
-                'prompt_count': len(cluster.prompts),
-                'usage_count': cluster.usage_count
-            }
-            pattern_data['clusters'].append(cluster_data)
-        
-        try:
-            with open(PATTERN_CACHE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(pattern_data, f, indent=2, ensure_ascii=False)
-            logger.info(f"🧠 Saved {len(clusters)} patterns to {PATTERN_CACHE_FILE}")
+                if similarity > best_similarity and similarity > 0.7:  # Similarity threshold
+                    best_similarity = similarity
+                    best_pattern = pattern
+            
+            if best_pattern and PROMETHEUS_AVAILABLE:
+                PATTERN_CACHE_HITS.inc()
+            
+            return best_pattern
+            
         except Exception as e:
-            logger.error(f"🧠 Failed to save patterns: {e}")
+            logger.error(f"❌ Pattern lookup failed: {e}")
+            return None
     
-    def run_pattern_mining(self, sources: List[str]) -> None:
-        """
-        Run the complete pattern mining pipeline.
-        
-        Args:
-            sources: List of completion data sources
-        """
-        logger.info("🧠 Starting pattern mining pipeline...")
-        
-        # 1. Ingest completions
-        completions = self.ingest_completions(sources)
-        if not completions:
-            logger.warning("🧠 No completions found to analyze")
-            return
-        
-        # 2. Cluster prompts
-        clusters = self.cluster_prompts(completions)
-        if not clusters:
-            logger.warning("🧠 No patterns found")
-            return
-        
-        # 3. Generate synthetic specialists
-        specialist_code = self.generate_synthetic_specialists(clusters)
-        
-        try:
-            with open(SYNTHETIC_SPECIALISTS_FILE, 'w', encoding='utf-8') as f:
-                f.write(specialist_code)
-            logger.info(f"🧠 Generated synthetic specialists: {SYNTHETIC_SPECIALISTS_FILE}")
-        except Exception as e:
-            logger.error(f"🧠 Failed to save specialists: {e}")
-        
-        # 4. Save patterns
-        self.save_patterns(clusters)
-        
-        # 5. Summary
-        total_prompts = sum(len(c.prompts) for c in clusters)
-        logger.info(f"🧠 Pattern mining complete:")
-        logger.info(f"   📥 Ingested: {len(completions)} completions")
-        logger.info(f"   🔍 Found: {len(clusters)} patterns")
-        logger.info(f"   📊 Covered: {total_prompts} prompts")
-        logger.info(f"   🚀 Expected savings: 20-30% of cloud calls")
+    async def stop(self):
+        """Stop the pattern miner"""
+        self.running = False
+        logger.info("🛑 Pattern Miner stopped")
 
-def main():
-    """CLI entry point for pattern mining"""
-    import argparse
+# Global instance for router integration
+_pattern_miner = None
+
+async def get_pattern_miner() -> PatternMiner:
+    """Get global pattern miner instance"""
+    global _pattern_miner
+    if _pattern_miner is None:
+        _pattern_miner = PatternMiner()
+        await _pattern_miner.initialize()
+    return _pattern_miner
+
+# CLI interface
+async def main():
+    """Main CLI interface for pattern miner"""
+    print("🔍 Pattern Miner α-Launch - Week 3")
+    print("=" * 50)
     
-    parser = argparse.ArgumentParser(description="Pattern Miner - Learn from completions")
-    parser.add_argument("sources", nargs="+", help="Completion data sources (files/directories)")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
-    
-    args = parser.parse_args()
-    
-    # Setup logging
-    level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
-    
-    # Run pattern mining
     miner = PatternMiner()
-    miner.run_pattern_mining(args.sources)
+    await miner.initialize()
+    
+    print(f"📊 Loaded {len(miner.discovered_patterns)} existing patterns")
+    
+    # Run single batch for testing
+    await miner._run_mining_batch()
+    
+    print(f"✅ Pattern mining complete: {len(miner.discovered_patterns)} total patterns")
+    
+    # Display patterns
+    for pattern in miner.discovered_patterns.values():
+        print(f"\n🎯 Pattern: {pattern.pattern_id}")
+        print(f"   Type: {pattern.pattern_type}")
+        print(f"   Intent: {pattern.intent_signature}")
+        print(f"   Confidence: {pattern.confidence:.3f}")
+        print(f"   Examples: {pattern.example_tasks[:2]}")
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

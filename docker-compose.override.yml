@@ -1,37 +1,46 @@
-version: '3.8'
-
 services:
-  # Prometheus Pushgateway for chaos testing
-  pushgw:
-    image: prom/pushgateway:latest
-    container_name: pushgateway
+  # vLLM 0.9 RC with Speculative Decoding
+  vllm:
+    image: vllm/vllm:0.9.0rc1
+    command: >
+      python -m vllm.entrypoints.openai.api_server
+      --model /models/tinyllama_1b_chat_q4
+      --speculative-mode draft
+      --draft-model /models/tinyllama_1b_chat_exllama2
+      --acceptance-rate 0.75
+      --gpu-memory-utilization 0.85
+      --max-num-seqs 16
+      --max-model-len 2048
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      CUDA_VISIBLE_DEVICES: 0
     ports:
-      - "9091:9091"
-    restart: on-failure:3
-    command:
-      - '--web.listen-address=0.0.0.0:9091'
-      - '--web.telemetry-path=/metrics'
-      - '--web.external-url=http://localhost:9091'
-      - '--log.level=info'
+      - "8001:8000"
+    volumes:
+      - ./models:/models:ro
     deploy:
       resources:
-        limits:
-          memory: 256m
-          cpus: "0.5"
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
-      interval: 15s
-      timeout: 3s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "2"
-    networks:
-      - default
+      start_period: 60s
 
-networks:
-  default:
-    name: council-network
-    external: true 
+  # Override council-api with Week 3 integrations
+  council-api:
+    environment:
+      - SWARM_EXEC_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+      - VLLM_URL=http://vllm:8000
+      - MAX_INFLIGHT_PROMPTS=16
+      - VLLM_SPEC=true
+      - BUDGET_MAX_DAILY=0.50
+    depends_on:
+      - redis
+      - vllm 

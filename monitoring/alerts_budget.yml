@@ -1,0 +1,13 @@
+groups:
+- name: budget-alerts
+  rules:
+  - alert: CloudSpendApproachingLimit
+    expr: cloud_spend_usd_total >= 0.8
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Cloud spend has exceeded $0.80 today"
+      description: |
+        Current spend: {{ $value }} USD.
+        Budget limit is $1.00. Further cloud calls will be blocked. 

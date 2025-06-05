@@ -1,0 +1,156 @@
+# Evolution Stack for Spiral v2.7.0 - Nightly LoRA Training & Pattern Mining
+version: '3.8'
+
+x-environment: &common-env
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  TRAINER_IMAGE_TAG: v2.7.0
+  SCHEDULER_IMAGE_TAG: v2.7.0
+
+services:
+  # Core Redis for job queuing
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - spiral-evolution
+    command: redis-server --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Production Trainer Service
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile.trainer
+      args:
+        VERSION: v2.7.0
+    image: registry.example.com/swarm/trainer:v2.7.0
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      LORA_RANK: 16
+      LORA_ALPHA: 32
+      MAX_TRAINING_TIME_MINUTES: 120
+      TRAINING_BUDGET_USD: 0.05
+      SCHEDULE_NIGHTLY_DISTILLATION: "true"
+      HF_HOME: /models/cache
+    volumes:
+      - models_data:/models
+      - training_data:/app/data
+      - trainer_logs:/app/logs
+      - job_tasks:/app/tasks
+    networks:
+      - spiral-evolution
+    depends_on:
+      redis:
+        condition: service_healthy
+    runtime: nvidia  # Enable GPU access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "/app/entrypoint.sh", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Scheduler Service for Cron Jobs
+  scheduler:
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile
+      args:
+        VERSION: v2.7.0
+    image: registry.example.com/swarm/cron:v2.7.0
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      SCHEDULE_NIGHTLY_DISTILLATION: "true"
+      SCHEDULE_PATTERN_MINING: "true"
+      FALLBACK_PROMPTS_ENABLED: "true"
+      TZ: UTC
+    volumes:
+      - scheduler_logs:/app/logs
+      - job_tasks:/app/tasks  # Shared with trainer
+      - training_data:/app/data  # For fallback prompts
+    networks:
+      - spiral-evolution
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/health_check.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Monitoring Stack (Optional)
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    networks:
+      - spiral-evolution
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+
+  # Grafana for Visualization
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: spiral123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - spiral-evolution
+    depends_on:
+      - prometheus
+
+volumes:
+  redis_data:
+    driver: local
+  models_data:
+    driver: local
+  training_data:
+    driver: local
+  trainer_logs:
+    driver: local
+  scheduler_logs:
+    driver: local
+  job_tasks:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  spiral-evolution:
+    driver: bridge
+    name: spiral-evolution 

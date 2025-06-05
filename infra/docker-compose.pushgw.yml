@@ -1,30 +1,28 @@
-version: "3.9"
+version: '3.8'
+
+# Pushgateway overlay for alert testing and batch job metrics
+# Used by: make test-alerts-e2e
 
 services:
   pushgw:
-    image: prom/pushgateway:latest
-    ports: ["9091:9091"]
-    deploy:
-      resources:
-        limits: { memory: 256m }
-      restart_policy:
-        condition: on-failure
-    volumes:
-      - pushgw_data:/data
-    command:
-      - '--web.listen-address=:9091'
-      - '--persistence.file=/data/pushgateway.db'
-      - '--persistence.interval=5m'
+    image: prom/pushgateway:v1.6.0
+    container_name: spiral-pushgateway-test
+    restart: "no"  # Only for testing
+    ports:
+      - "9091:9091"
+    networks:
+      - swarm-spiral-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9091" 
+      - "prometheus.io/path=/metrics"
+      - "traefik.enable=false"  # Don't route through Traefik
 
-volumes:
-  pushgw_data: 
+networks:
+  swarm-spiral-network:
+    external: true 

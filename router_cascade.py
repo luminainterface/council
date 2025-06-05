@@ -137,28 +137,58 @@ STUB_MARKERS = [
     "NotImplementedError", "pass  # stub", "raise NotImplementedError"
 ]
 
+# 🎯 ENHANCED STUB PATTERNS: Multiline regex patterns (flags=re.S|re.M)
+STUB_PATTERNS = [
+    re.compile(r"<<<.*?>>>", flags=re.S|re.M),   # multiline placeholders
+    re.compile(r"\{\{.*?\}\}", flags=re.S|re.M), # template variables
+    re.compile(r"template.*?response", flags=re.S|re.M|re.I),
+    re.compile(r"todo:.*?implement", flags=re.S|re.M|re.I),
+    re.compile(r"custom_function\s*\(", flags=re.S|re.M|re.I),
+    re.compile(r"placeholder.*?text", flags=re.S|re.M|re.I),
+]
+
 def scrub(candidate: Dict[str, Any], query: str = "") -> Dict[str, Any]:
     """
-    Week 1 Foundation - Stub scrub function (Enhanced per get-green script)
+    Week 1 Foundation - Stub scrub function (Enhanced per bridge plan)
     If any stub marker found in response text OR input query, set confidence to 0.0
+    Now includes multiline regex patterns and hard confidence override.
     """
-    response_text = candidate.get("text", "").lower()
-    query_text = query.lower()
+    response_text = candidate.get("text", "")
+    query_text = query
     
-    # Check both response and query for stub markers
+    # Check both response and query for simple stub markers
     for marker in STUB_MARKERS:
-        if marker in response_text:
+        if marker.lower() in response_text.lower():
             logger.warning(f"🚫 Stub marker '{marker}' detected in response - confidence → 0.0")
             candidate["confidence"] = 0.0
             candidate["stub_detected"] = marker
             candidate["stub_location"] = "response"
-            break
-        elif marker in query_text:
+            return candidate
+        elif marker.lower() in query_text.lower():
             logger.warning(f"🚫 Stub marker '{marker}' detected in query - confidence → 0.0")
             candidate["confidence"] = 0.0
             candidate["stub_detected"] = marker
             candidate["stub_location"] = "query"
-            break
+            return candidate
+    
+    # Check multiline regex patterns
+    for pattern in STUB_PATTERNS:
+        if pattern.search(response_text):
+            logger.warning(f"🚫 Stub pattern '{pattern.pattern}' detected in response - confidence → 0.0")
+            candidate["confidence"] = 0.0
+            candidate["stub_detected"] = pattern.pattern
+            candidate["stub_location"] = "response_regex"
+            return candidate
+        elif pattern.search(query_text):
+            logger.warning(f"🚫 Stub pattern '{pattern.pattern}' detected in query - confidence → 0.0")
+            candidate["confidence"] = 0.0
+            candidate["stub_detected"] = pattern.pattern
+            candidate["stub_location"] = "query_regex"
+            return candidate
+    
+    # Hard confidence override: if scrub() finds anything, confidence = 0.05
+    if candidate.get("stub_detected"):
+        candidate["confidence"] = 0.05
     
     return candidate
 
@@ -260,6 +290,13 @@ except ImportError:
     exec_safe = None
 
 from prometheus_client import Counter, Histogram, Summary
+from router.scrub import scrub as new_scrub, is_stub
+
+# NEW Prometheus counter
+STUB_DETECTIONS_TOTAL = Counter(
+    "stub_detections_total",
+    "Number of generations flagged as template/unsupported",
+)
 
 # 💰 REDIS CACHE for identical prompts - save cost on repeats
 try:
@@ -1353,6 +1390,15 @@ print(result)"""
         except Exception as e:
             logger.debug(f"🧠 Reflection write failed: {e}")
         
+        # -------- POST-FUSION GUARD  ---------------------------------------
+        # No code path can bypass this block.
+        orig_conf = result["confidence"]
+        result["confidence"] = new_scrub(result["text"], orig_conf)
+
+        if result["confidence"] == 0.0:
+            result.setdefault("meta", {})["stub_detected"] = True
+            STUB_DETECTIONS_TOTAL.inc()
+
         return result
     
     async def _route_to_skill(self, skill: str, query: str) -> Dict[str, Any]:
@@ -1766,8 +1812,18 @@ print(result)"""
     async def _fuse_agent0_with_specialists(self, agent0_draft: Dict[str, Any], specialists: List[Dict[str, Any]], original_prompt: str) -> Dict[str, Any]:
         """Fuse Agent-0 draft with specialist improvements"""
         try:
+            # 🚫 CRITICAL: Apply stub detection to ALL specialist responses
+            specialists_scrubbed = []
+            for specialist in specialists:
+                scrubbed = scrub(specialist.copy(), original_prompt)
+                specialists_scrubbed.append(scrubbed)
+                
+                # Log if specialist was scrubbed
+                if scrubbed.get("stub_detected"):
+                    logger.warning(f"🚫 Specialist {specialist.get('skill_type', 'unknown')} had stub: {scrubbed['stub_detected']}")
+            
             # Simple fusion strategy: pick best by confidence, or combine
-            all_candidates = [agent0_draft] + specialists
+            all_candidates = [agent0_draft] + specialists_scrubbed
             
             # Find highest confidence response
             best_response = max(all_candidates, key=lambda x: x.get("confidence", 0))
@@ -1778,28 +1834,38 @@ print(result)"""
             
             if best_conf > agent0_conf + 0.15:  # Specialist beats Agent-0 by 15%+
                 logger.info(f"✨ Specialist wins: {best_conf:.2f} vs Agent-0 {agent0_conf:.2f}")
+                
+                # Apply final stub check on winning response
+                final_response = scrub(best_response.copy(), original_prompt)
+                
                 return {
-                    **best_response,
+                    **final_response,
                     "refinement_type": "specialist_replacement",
                     "original_agent0_confidence": agent0_conf,
-                    "specialists_used": [s.get("skill_type", "unknown") for s in specialists]
+                    "specialists_used": [s.get("skill_type", "unknown") for s in specialists_scrubbed]
                 }
             
             else:
                 # Combine responses intelligently
                 combined_text = f"{agent0_draft['text']}\n\n[Additional context: {best_response['text']}]"
                 
-                return {
+                # Create fusion response and apply stub detection
+                fusion_candidate = {
                     "text": combined_text,
                     "model": f"agent0+{best_response.get('skill_type', 'specialist')}",
                     "confidence": min(0.85, (agent0_conf + best_conf) / 2),  # Average, capped
                     "skill_type": "fusion",
                     "latency_ms": agent0_draft.get("latency_ms", 0),
-                    "cost_usd": sum(s.get("cost_usd", 0) for s in specialists),
+                    "cost_usd": sum(s.get("cost_usd", 0) for s in specialists_scrubbed),
                     "refinement_type": "fusion",
                     "original_agent0_confidence": agent0_conf,
-                    "specialists_used": [s.get("skill_type", "unknown") for s in specialists]
+                    "specialists_used": [s.get("skill_type", "unknown") for s in specialists_scrubbed]
                 }
+                
+                # Apply final stub check on fusion result
+                final_fusion = scrub(fusion_candidate, original_prompt)
+                
+                return final_fusion
                 
         except Exception as e:
             logger.error(f"❌ Fusion failed: {e}")

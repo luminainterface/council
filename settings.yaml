@@ -17,6 +17,10 @@ router:
   eager_stream: true          # Send Agent-0 draft immediately
   refine_async: true          # Run specialists in background
   background_timeout: 8       # Max time for specialist refinement
+  budget:
+    daily_usd: 1.00           # Max daily cloud spend
+    per_request_usd: 0.05     # Max per-request cloud spend
+    alert_threshold: 0.80     # Alert at 80% of daily budget
 
 # Specialist Configuration
 specialists:
@@ -24,25 +28,42 @@ specialists:
   timeout_seconds: 8          # 8s timeout for specialists
   sandbox_enabled: true       # Tool-heads run in sandbox only
 
-# Backend Configuration for Phase 4 TensorRT-LLM
+# Backend Configuration - Local Transformers
 backends:
   # Current proven baseline (Phase 3 + Memory)
   transformers:
     enabled: true
-    weight: 0.0  # Disabled for TensorRT testing
+    weight: 1.0  # Primary backend using local CUDA models
     max_tokens: 512
     temperature: 0.7
     
-  # Phase 4: TensorRT-LLM Optimization
-  tensorrt:
+  # Phase 4: TensorRT-LLM Optimization (DISABLED - dead port)
+  # tensorrt:
+  #   enabled: false
+  #   url: http://localhost:8081/v1
+  #   weight: 0.0
+  #   max_batch_tokens: 4096
+  #   max_batch_size: 64
+  #   draft_tokens: 0
+  #   timeout: 15
+  #   max_retries: 2
+
+# Local Model Configuration
+local_models:
+  local_tinyllama:
+    provider: transformers
+    model_path: TinyLlama/TinyLlama-1.1B-Chat-v1.0  # Actual TinyLlama model
     enabled: true
-    url: http://localhost:8081/v1
-    weight: 1.0                # Primary backend for testing
-    max_batch_tokens: 4096
-    max_batch_size: 64
-    draft_tokens: 0            # Speculative decoding handled by TRT
-    timeout: 15                # 15s timeout for inference
-    max_retries: 2
+    device: cuda
+    max_tokens: 160
+    temperature: 0.0
+    torch_dtype: float16
+    low_cpu_mem_usage: true
+    trust_remote_code: true
+  local_mixtral:
+    provider: transformers
+    enabled: false  # Lazy load later
+    device: cuda
     
 # Memory Integration (Phase 3)
 memory:

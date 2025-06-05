@@ -1,0 +1,95 @@
+# Prometheus Alert Rules for Canary Deployments
+# Stage 4 requirement: Auto-rollback on regression detection
+
+groups:
+  - name: canary_deployment
+    rules:
+      # Critical: Canary regression detected
+      - alert: CanaryRegression
+        expr: holdout_success_ratio < 0.97
+        for: 3m
+        labels:
+          severity: critical
+          component: canary
+          action: rollback
+        annotations:
+          summary: "Canary regression detected - auto-rollback triggered"
+          description: "Holdout success rate {{ $value | humanizePercentage }} below 97% threshold"
+          runbook_url: "https://docs.spiral.ai/runbooks/canary.md#regression-rollback"
+          webhook_url: "http://api:9000/admin/canary/webhook/rollback"
+
+      # Critical: Canary latency spike
+      - alert: CanaryLatencySpike
+        expr: holdout_latency_p95 > (holdout_latency_p95 offset 1h) + 50
+        for: 2m
+        labels:
+          severity: critical
+          component: canary
+          action: rollback
+        annotations:
+          summary: "Canary latency spike - rollback triggered"
+          description: "P95 latency {{ $value }}ms exceeds baseline + 50ms"
+          webhook_url: "http://api:9000/admin/canary/webhook/rollback"
+
+      # Warning: Canary health degrading
+      - alert: CanaryHealthDegrading
+        expr: holdout_success_ratio < 0.99 and holdout_success_ratio >= 0.97
+        for: 5m
+        labels:
+          severity: warning
+          component: canary
+        annotations:
+          summary: "Canary health degrading but within limits"
+          description: "Success rate {{ $value | humanizePercentage }} - monitoring closely"
+
+      # Info: Canary promotion eligible
+      - alert: CanaryPromotionEligible
+        expr: |
+          holdout_success_ratio >= 0.99 and 
+          holdout_latency_p95 <= 1000 and
+          time() - canary_start_time > 3600  # 1 hour minimum
+        for: 10m
+        labels:
+          severity: info
+          component: canary
+          action: promote
+        annotations:
+          summary: "Canary eligible for promotion"
+          description: "Canary performing well for 1+ hours - ready for promotion"
+          webhook_url: "http://api:9000/admin/canary/webhook/promote"
+
+      # Critical: Canary completely failed
+      - alert: CanaryFailure
+        expr: up{job="api-canary"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: canary
+          action: rollback
+        annotations:
+          summary: "Canary service completely failed"
+          description: "Canary API is down - immediate rollback required"
+          webhook_url: "http://api:9000/admin/canary/webhook/emergency_stop"
+
+      # Info: Successful canary rollback
+      - alert: CanaryRollbackComplete
+        expr: increase(canary_rollback_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: info
+          component: canary
+        annotations:
+          summary: "Canary rollback completed successfully"
+          description: "Traffic restored to production, canary disabled"
+
+      # Warning: No recent canary deployments
+      - alert: NoRecentCanaryDeployments
+        expr: time() - canary_last_deployment > 604800  # 7 days
+        for: 1h
+        labels:
+          severity: warning
+          component: evolution
+        annotations:
+          summary: "No canary deployments in 7+ days"
+          description: "Evolution pipeline may be stalled"
+          action: "Check trainer and snapshot pipeline health" 

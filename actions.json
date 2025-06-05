@@ -1,0 +1,95 @@
+{
+  "version": "1.0",
+  "description": "OS action definitions for intent → action pipeline",
+  "actions": [
+    {
+      "name": "os_file_create",
+      "description": "Create a new file with specified content",
+      "executor": "shell",
+      "args": {
+        "filename": "string",
+        "content": "string",
+        "permissions": "string"
+      },
+      "command_template": "echo '{content}' > {filename} && chmod {permissions} {filename}",
+      "timeout_ms": 5000,
+      "budget_cost": 0.001,
+      "safety_level": "medium"
+    },
+    {
+      "name": "os_file_list",
+      "description": "List files in specified directory",
+      "executor": "shell", 
+      "args": {
+        "directory": "string",
+        "show_hidden": "bool"
+      },
+      "command_template": "ls {show_hidden|--all|} {directory}",
+      "timeout_ms": 3000,
+      "budget_cost": 0.0005,
+      "safety_level": "low"
+    },
+    {
+      "name": "os_system_info",
+      "description": "Get system information and health status",
+      "executor": "shell",
+      "args": {
+        "detail_level": "string"
+      },
+      "command_template": "uname -a && df -h && free -m",
+      "timeout_ms": 8000,
+      "budget_cost": 0.001,
+      "safety_level": "low"
+    },
+    {
+      "name": "web_search",
+      "description": "Search the web for information",
+      "executor": "cloud",
+      "args": {
+        "query": "string",
+        "max_results": "int",
+        "recency_days": "int"
+      },
+      "timeout_ms": 15000,
+      "budget_cost": 0.005,
+      "safety_level": "medium"
+    },
+    {
+      "name": "calculate_math",
+      "description": "Perform mathematical calculations",
+      "executor": "internal",
+      "args": {
+        "expression": "string",
+        "precision": "int"
+      },
+      "timeout_ms": 2000,
+      "budget_cost": 0.0001,
+      "safety_level": "low"
+    },
+    {
+      "name": "generate_code",
+      "description": "Generate code for specified requirements",
+      "executor": "cloud",
+      "args": {
+        "language": "string",
+        "requirements": "string",
+        "style_guide": "string"
+      },
+      "timeout_ms": 30000,
+      "budget_cost": 0.01,
+      "safety_level": "high"
+    }
+  ],
+  "safety_rules": {
+    "blocked_patterns": [
+      "rm -rf /",
+      "format",
+      "mkfs",
+      "dd if=.*of=/dev/",
+      "sudo su",
+      "chmod 777 /"
+    ],
+    "max_daily_budget": 1.00,
+    "max_single_action_cost": 0.05
+  }
+} 

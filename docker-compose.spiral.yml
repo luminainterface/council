@@ -1,0 +1,265 @@
+version: '3.8'
+
+# Autonomous Software Spiral v2.7.0 - Complete Stack
+# Extends v2.6.0 with pattern mining, nightly distillation, and enhanced caching
+
+services:
+  # ── Core API with GPU inference and Spiral routing ──
+  api:
+    image: registry.example.com/swarm/api:v2.7.0-spiral
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    environment:
+      - SWARM_GPU_PROFILE=rtx_4070
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_REDIS_URL=redis://redis:6379/1
+      - PATTERN_REDIS_URL=redis://redis:6379/3
+      - SWARM_BUDGET_DAILY_USD=0.10
+      - SWARM_CONFIDENCE_GATE=0.60
+      - SWARM_PATTERN_MINING_ENABLED=true
+    volumes:
+      - models_vol:/models
+      - ./logs:/app/logs
+      - ./.env.swarm:/app/.env
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "9000:9000"
+    depends_on:
+      - redis
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9000"
+      - "prometheus.io/path=/metrics"
+
+  # ── Pattern Mining Service (NEW) ──
+  pattern-miner:
+    image: registry.example.com/swarm/pattern-miner:v2.7.0
+    build:
+      context: .
+      dockerfile: Dockerfile.pattern-miner
+    restart: on-failure
+    environment:
+      - REDIS_URL=redis://redis:6379/3
+      - PATTERN_MINING_INTERVAL=21600  # 6 hours
+      - MIN_CLUSTER_SIZE=3
+      - MIN_CONFIDENCE=0.7
+    volumes:
+      - models_vol:/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+    healthcheck:
+      test: ["CMD", "/app/health_check.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+  # ── Enhanced Trainer with Nightly Distillation ──
+  trainer:
+    image: registry.example.com/swarm/trainer:v2.7.0
+    build:
+      context: .
+      dockerfile: Dockerfile.trainer
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TRAINING_BUDGET_USD=0.05
+      - LORA_RANK=16
+      - LORA_ALPHA=32
+      - MAX_TRAINING_TIME_MINUTES=120
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - models_vol:/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - redis
+      - api
+    healthcheck:
+      test: ["CMD", "/app/health_check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Scheduler for Nightly Jobs (Enhanced) ──
+  scheduler:
+    image: registry.example.com/swarm/cron:v2.7.0
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SCHEDULE_NIGHTLY_DISTILLATION=true
+      - SCHEDULE_PATTERN_MINING=true
+      - FALLBACK_PROMPTS_ENABLED=true
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - trainer
+      - pattern-miner
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "scheduler.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Redis (Enhanced with Multiple DBs) ──
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru --save 900 1
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ── Prometheus (Enhanced with Spiral Metrics) ──
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/spiral_rules.yml:/etc/prometheus/spiral_rules.yml
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Grafana with Spiral Dashboards ──
+  grafana:
+    image: grafana/grafana:10.1.0
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=swarm_admin_2024
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Alertmanager for Spiral Alerts ──
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/config.yml
+      - alertmanager_data:/alertmanager
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Pushgateway for Batch Job Metrics ──
+  pushgateway:
+    image: prom/pushgateway:v1.6.0
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  models_vol:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./models  # Bind mount to local models directory
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+
+networks:
+  default:
+    name: swarm-spiral-network
+    driver: bridge
+
+# ── Environment Configuration Example ──
+# Create .env.swarm file with:
+# MISTRAL_API_KEY=your_mistral_key
+# OPENAI_API_KEY=your_openai_key  
+# ANTHROPIC_API_KEY=your_anthropic_key 

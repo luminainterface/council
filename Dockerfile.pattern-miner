@@ -1,0 +1,115 @@
+# ── Pattern Miner Service for Autonomous Software Spiral ──
+FROM python:3.11-slim
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    REDIS_URL=redis://redis:6379/3 \
+    PATTERN_MINING_INTERVAL=21600
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for pattern mining
+RUN python -m pip install --no-cache-dir --upgrade pip && \
+    python -m pip install --no-cache-dir \
+        # Core dependencies
+        redis==5.0.1 \
+        pyyaml==6.0.1 \
+        requests==2.31.0 \
+        numpy==1.24.4 \
+        # ML libraries for clustering
+        sentence-transformers==2.2.2 \
+        hdbscan==0.8.33 \
+        scikit-learn==1.3.2 \
+        # Data processing
+        pandas==2.1.4 \
+        datasets==2.15.0
+
+# Create app directory
+WORKDIR /app
+
+# Copy pattern mining components
+COPY ./pattern_miner.py /app/
+COPY ./config /app/config/
+COPY ./cache /app/cache/
+COPY ./cost_tracker.py /app/
+
+# Create necessary directories
+RUN mkdir -p /app/data/completions \
+             /app/patterns \
+             /app/logs
+
+# Create pattern mining script
+RUN echo '#!/bin/bash\n\
+echo "$(date): Starting pattern mining cycle..."\n\
+cd /app\n\
+\n\
+# Collect completions from Redis and files\n\
+python pattern_miner.py \\\n\
+    data/completions/ \\\n\
+    --redis-source redis://redis:6379/0 \\\n\
+    --verbose \\\n\
+    || echo "$(date): Pattern mining failed with exit code $?"\n\
+\n\
+# Check if new patterns were generated\n\
+if [ -f "patterns/synthetic_specialists.py" ]; then\n\
+    echo "$(date): New patterns generated - triggering API reload"\n\
+    # Touch reload flag for API hot-reload\n\
+    touch /models/reload.flag\n\
+    \n\
+    # Update pattern count metric\n\
+    PATTERN_COUNT=$(grep "PATTERN_COUNT" patterns/synthetic_specialists.py | grep -o "[0-9]\\+")\n\
+    echo "swarm_patterns_learned_total ${PATTERN_COUNT:-0}" > /tmp/patterns.prom\n\
+fi\n\
+\n\
+echo "$(date): Pattern mining cycle complete"\n\
+' > /app/run_pattern_mining.sh && chmod +x /app/run_pattern_mining.sh
+
+# Create cron job for pattern mining every 6 hours
+RUN echo "0 */6 * * * /app/run_pattern_mining.sh >> /app/logs/pattern_mining.log 2>&1" > /etc/cron.d/pattern-mining && \
+    chmod 0644 /etc/cron.d/pattern-mining && \
+    crontab /etc/cron.d/pattern-mining
+
+# Health check script
+RUN echo '#!/bin/bash\n\
+# Check if pattern mining is healthy\n\
+if [ -f "/app/patterns/synthetic_specialists.py" ]; then\n\
+    exit 0\n\
+else\n\
+    # Check if initial run completed\n\
+    if [ -f "/tmp/pattern_mining_started" ]; then\n\
+        exit 1\n\
+    else\n\
+        exit 0\n\
+    fi\n\
+fi\n\
+' > /app/health_check.sh && chmod +x /app/health_check.sh
+
+# Startup script that runs initial pattern mining then starts cron
+RUN echo '#!/bin/bash\n\
+echo "$(date): Pattern Miner service starting..."\n\
+\n\
+# Create startup marker\n\
+touch /tmp/pattern_mining_started\n\
+\n\
+# Run initial pattern mining\n\
+echo "$(date): Running initial pattern mining..."\n\
+/app/run_pattern_mining.sh\n\
+\n\
+# Start cron in foreground\n\
+echo "$(date): Starting cron daemon..."\n\
+exec cron -f\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 \
+    CMD /app/health_check.sh
+
+# Volumes for shared data
+VOLUME ["/models", "/app/data"]
+
+# Run pattern mining service
+CMD ["/app/entrypoint.sh"] 

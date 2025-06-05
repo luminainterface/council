@@ -24,8 +24,8 @@ providers:
     
   local_tinyllama:
     type: transformers
-    model_path: microsoft/phi-1_5  # Use smaller model for spiral
-    dtype: int4  
+    model_path: TinyLlama/TinyLlama-1.1B-Chat-v1.0  # Actual TinyLlama model
+    dtype: float16  
     device: cuda  # Force CUDA for GPU acceleration
     name: Local TinyLlama (Transformers)
     latency_target_ms: 300

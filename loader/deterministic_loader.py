@@ -172,22 +172,24 @@ def create_transformers_model(head: Dict[str, Any]) -> Any:
     echo(f"🔧 Loading {name} -> {model_id} with CPU to avoid CUDA OOM...")
     
     try:
-        # Force CPU to avoid CUDA OOM issues
-        device = "cpu"
-        echo(f"🖥️ Using CPU device for {name} to ensure reliable inference")
+        # Use CUDA if available, fallback to CPU
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        torch_dtype = torch.float16 if device == "cuda" else torch.float32
+        echo(f"🚀 Using {device} device for {name} (dtype: {torch_dtype})")
         
-        # CPU-optimized loading
+        # Optimized loading for GPU acceleration
         pipe = pipeline(
             "text-generation",
             model=model_id,
             device=device,
-            torch_dtype=torch.float32,  # Use float32 for CPU
+            torch_dtype=torch_dtype,
             trust_remote_code=True,
             use_fast=True,
-            # Conservative generation settings
+            # Optimized generation settings for speed
             max_new_tokens=150,
             do_sample=True,
             temperature=0.7,
+            device_map="auto" if device == "cuda" else None,
         )
         
         echo(f"✅ Transformers {name} loaded successfully on CPU using {model_id}")

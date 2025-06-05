@@ -1,0 +1,8 @@
+# Traffic Snapshot Crontab Configuration
+# Add to swarm/cron:v2.7.0's crontab
+#
+# Runs daily at 01:55 UTC to capture traffic before training at 02:00
+55 1 * * * /scripts/snapshot_traffic.sh >> /var/log/snapshot.log 2>&1
+
+# Optional: Cleanup old snapshots weekly (Sundays at 03:00)
+0 3 * * 0 find /workspace/snapshots -name "20*" -type d -mtime +7 -exec rm -rf {} \; >> /var/log/cleanup.log 2>&1 

@@ -1,0 +1,120 @@
+version: '3.8'
+
+# vLLM 0.9 RC with Speculative Decoding - Week 2 Final Push
+# =========================================================
+
+services:
+  vllm:
+    image: vllm/vllm:0.9.0rc1
+    command: >
+      python -m vllm.entrypoints.openai.api_server
+      --model /models/tinyllama_1b_chat_q4
+      --speculative-mode draft
+      --draft-model /models/tinyllama_1b_chat_exllama2
+      --acceptance-rate 0.75
+      --gpu-memory-utilization 0.85
+      --max-num-seqs 16
+      --max-model-len 2048
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      CUDA_VISIBLE_DEVICES: 0
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    ports:
+      - "8001:8000"  # vLLM API endpoint
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Override council-api with vLLM integration
+  council-api:
+    environment:
+      - SWARM_EXEC_ENABLED=true
+      - REDIS_URL=redis://redis:6379/0
+      - VLLM_URL=http://vllm:8000
+      - MAX_INFLIGHT_PROMPTS=16
+      - VLLM_SPEC=true
+    depends_on:
+      - redis
+      - vllm
+      
+  # Prometheus Pushgateway for chaos testing
+  pushgw:
+    image: prom/pushgateway:latest
+    container_name: pushgateway
+    ports:
+      - "9091:9091"
+    restart: on-failure:3
+    command:
+      - '--web.listen-address=0.0.0.0:9091'
+      - '--web.telemetry-path=/metrics'
+      - '--web.external-url=http://localhost:9091'
+      - '--log.level=info'
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "2"
+
+  # Trainer service for nightly LoRA evolution
+  trainer:
+    image: swarm/trainer:v2.7.0
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.trainer
+    volumes:
+      - /loras:/loras                    # Snapshot data + adapter output
+      - /models:/models                  # Base model checkpoints
+      - ./trainer:/app/trainer           # Training code
+      - ./pattern_miner:/app/pattern_miner # Pattern mining utilities
+    environment:
+      - SWARM_BUDGET_USD=0.10            # Daily budget protection
+      - BASE_MODEL=/models/tinyllama      # Default base model
+      - CUDA_VISIBLE_DEVICES=0           # GPU assignment
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - training
+
+  # Redis with persistence for pattern storage
+  redis:
+    volumes:
+      - redis_data:/data                 # Persistent Redis data
+    command: redis-server --save 60 1000 --appendonly yes
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: council-network
+    external: true
+  swarm_network:
+    external: true 

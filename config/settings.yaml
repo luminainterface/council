@@ -22,7 +22,7 @@ memory:
   cache_size: 1000
   episodic_limit: 240  # tokens for episodic context
 sandbox:
-  provider: auto                    # auto-detect: docker > wsl > firejail
+  provider: wsl                     # Use WSL for Week 2 development on Windows
   enabled: true                     # Enable sandbox execution
   timeout_seconds: 10               # Maximum execution time (increased for Week 2)
   memory_limit_mb: 512              # Memory limit (increased for OS commands)
@@ -40,6 +40,7 @@ sandbox:
   wsl:
     distro: Ubuntu                  # WSL distribution
     user: sandbox                   # Execution user
+    use_firejail: false             # Disable firejail for Week 2 development
     
   # Firejail-specific settings (Linux native)
   firejail:

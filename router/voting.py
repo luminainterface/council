@@ -359,11 +359,14 @@ async def vote(prompt: str, model_names: List[str] = None, top_k: int = 1, use_c
     """
     start_time = time.time()
     
-    # 🚀 SURGICAL FIX: Template stub detection patterns
+    # 🚀 SURGICAL FIX: Template stub detection patterns (per get-green script)
+    STUB = ["template", "todo", "custom_function", "unsupported number theory"]
+    
     stub_markers = [
         'custom_function', 'TODO', 'pass', 'NotImplemented',
         'placeholder', 'your_code_here', '# Add implementation',
-        'Processing', 'Transformers response', 'Mock response'
+        'Processing', 'Transformers response', 'Mock response',
+        'template', 'todo', 'unsupported number theory'  # Added per script
     ]
     
     # 🎯 ENHANCED STUB PATTERNS: Catch greeting stubs and UNSURE responses

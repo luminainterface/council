@@ -196,11 +196,11 @@ def exec_wsl(code: str, lang: str, settings: dict) -> dict:
         
         start = time.perf_counter()
         
-        # Try firejail first, fallback to basic WSL
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-        except subprocess.SubprocessError:
-            # Firejail not available, use basic WSL
+        # Try firejail first, fallback to basic WSL if firejail fails
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # If firejail command failed (likely because firejail not installed), try fallback
+        if proc.returncode != 0 and ("firejail" in proc.stderr and ("not found" in proc.stderr or "command not found" in proc.stderr)):
             proc = subprocess.run(fallback_cmd, capture_output=True, text=True)
             
         elapsed = int((time.perf_counter() - start) * 1000)

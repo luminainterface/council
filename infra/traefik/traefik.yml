@@ -1,0 +1,33 @@
+# Traefik v3.1 Static Configuration for Spiral v2.7.0
+# Supplementary to Docker labels configuration
+
+api:
+  dashboard: true
+  insecure: true  # Remove in production
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+  api:
+    address: ":9000"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: "swarm-spiral-network"
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+log:
+  level: INFO
+
+accessLog: {}
+
+# Enable Traefik health check
+ping: {} 

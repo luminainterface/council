@@ -1,96 +1,108 @@
-#!/usr/bin/env bash
-# Week 2: OS Integration Validation Script
-set -e
+#!/bin/bash
+# ── Redis-Based OS Integration Test ──
 
-echo "🔧 Week 2: Testing OS Integration Implementation"
-echo "=============================================="
+set -euo pipefail
 
-# 1. Test shell executor import
-echo ""
-echo "1️⃣ Testing shell executor import..."
-python3 -c "
-try:
-    from action_handlers import get_executor, execute_shell_command
-    executor = get_executor()
-    print('✅ Shell executor import successful')
-    print(f'   Executor type: {type(executor).__name__}')
-except Exception as e:
-    print(f'❌ Shell executor import failed: {e}')
-    exit(1)
-"
+echo "🧪 Testing Redis-Based OS Executor Integration..."
 
-# 2. Test direct command execution
-echo ""
-echo "2️⃣ Testing direct command execution..."
-python3 -c "
-from action_handlers import execute_shell_command
-import json
-
-result = execute_shell_command('echo \"Hello Week 2\"')
-print('✅ Direct execution successful')
-print(f'   Result: {json.dumps(result, indent=2)}')
-"
-
-# 3. Test security allowlist (should block)
-echo ""
-echo "3️⃣ Testing security allowlist..."
-python3 -c "
-from action_handlers import execute_shell_command
-import json
-
-result = execute_shell_command('rm -rf /')
-if not result['success'] and result.get('blocked_reason'):
-    print('✅ Security allowlist working')
-    print(f'   Blocked: {result[\"blocked_reason\"]}')
-else:
-    print('❌ Security allowlist not working properly')
-    print(f'   Result: {json.dumps(result, indent=2)}')
-"
-
-# 4. Test API endpoint (if server is running)
-echo ""
-echo "4️⃣ Testing /task API endpoint..."
-if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-    echo "   Server is running, testing API..."
-    
-    RESPONSE=$(curl -s -X POST http://localhost:8000/task \
-         -H "Content-Type: application/json" \
-         -d '{"command":"echo API Test","session_id":"test"}' | jq -r '.stdout // "ERROR"')
-    
-    if [ "$RESPONSE" = "API Test" ]; then
-        echo "✅ API endpoint working"
-        echo "   Response: $RESPONSE"
-    else
-        echo "❌ API endpoint not working"
-        echo "   Response: $RESPONSE"
+# Check Redis availability
+echo "Testing Redis connection..."
+if ! redis-cli ping > /dev/null 2>&1; then
+    echo "❌ Redis not available - starting with Docker Compose"
+    if ! docker-compose -f docker-compose.yml up -d redis; then
+        echo "❌ Failed to start Redis with Docker Compose"
+        exit 1
     fi
-else
-    echo "⚠️ Server not running, skipping API test"
-    echo "   Start server with: python app/main.py"
+    
+    # Wait for Redis to be ready
+    echo "⏳ Waiting for Redis to be ready..."
+    for i in {1..30}; do
+        if redis-cli ping > /dev/null 2>&1; then
+            echo "✅ Redis is ready"
+            break
+        fi
+        sleep 1
+    done
+    
+    if ! redis-cli ping > /dev/null 2>&1; then
+        echo "❌ Redis failed to start after 30 seconds"
+        exit 1
+    fi
 fi
 
-# 5. Test router integration
-echo ""
-echo "5️⃣ Testing router integration..."
-python3 -c "
-try:
-    from router_cascade import RouterCascade
-    router = RouterCascade()
-    
-    if hasattr(router, 'executors') and 'shell' in router.executors:
-        print('✅ Router integration successful')
-        print(f'   Executors registered: {list(router.executors.keys())}')
-    else:
-        print('⚠️ Router integration partial')
-        print('   Executors not found or shell executor not registered')
-except Exception as e:
-    print(f'❌ Router integration failed: {e}')
-"
+# Check if FastAPI with ShellExecutor is running
+echo "Testing FastAPI health..."
+if ! curl -s http://localhost:8000/health > /dev/null; then
+    echo "❌ FastAPI not available - please start the application first"
+    echo "   Run: SWARM_EXEC_ENABLED=true python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    exit 1
+fi
 
+# Check if ShellExecutor is enabled
+echo "Testing ShellExecutor status..."
+HEALTH_RESPONSE=$(curl -s http://localhost:8000/health || echo '{}')
+echo "Health response: $HEALTH_RESPONSE"
+
+# Test Redis queue directly
+echo "Testing Redis queue functionality..."
+JOB_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+TEST_CODE='import time; print("Redis test successful"); print(f"Elapsed: {int(time.time() * 1000)}")'
+
+# Push test job to Redis
+redis-cli RPUSH "swarm:exec:q" "{\"id\":\"$JOB_ID\",\"code\":\"$TEST_CODE\"}" > /dev/null
+
+echo "🔧 Pushed test job $JOB_ID to Redis queue"
+
+# Wait for response (up to 10 seconds)
+echo "⏳ Waiting for ShellExecutor response..."
+for i in {1..10}; do
+    RESPONSE=$(redis-cli BLPOP "swarm:exec:resp" 1 2>/dev/null || echo "")
+    if [[ -n "$RESPONSE" ]]; then
+        # Parse the response (Redis returns queue name and JSON)
+        JSON_RESPONSE=$(echo "$RESPONSE" | tail -n 1)
+        echo "📋 Raw response: $JSON_RESPONSE"
+        
+        # Check if this is our job
+        RESPONSE_ID=$(echo "$JSON_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('id', 'unknown'))")
+        if [[ "$RESPONSE_ID" == "$JOB_ID" ]]; then
+            echo "✅ Got response for our job!"
+            
+            # Validate response
+            SUCCESS=$(echo "$JSON_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('ok', False))")
+            STDOUT=$(echo "$JSON_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('stdout', ''))")
+            
+            if [[ "$SUCCESS" == "True" ]] && [[ "$STDOUT" == *"Redis test successful"* ]]; then
+                echo "✅ Redis-based execution successful!"
+                echo "   Output: $STDOUT"
+                break
+            else
+                echo "❌ Redis execution failed"
+                echo "   Response: $JSON_RESPONSE"
+                exit 1
+            fi
+        else
+            # Put back if it's not our job
+            redis-cli RPUSH "swarm:exec:resp" "$JSON_RESPONSE" > /dev/null
+        fi
+    fi
+    
+    if [[ $i -eq 10 ]]; then
+        echo "❌ No response received after 10 seconds"
+        echo "   Check if ShellExecutor consumer is running"
+        exit 1
+    fi
+done
+
+# Run pytest integration tests
+echo "Running pytest integration tests..."
+cd tests
+python3 -m pytest os_exec_smoke.py -v --tb=short
+
+echo "✅ All Redis-based OS integration tests passed!"
 echo ""
-echo "🎯 Week 2 OS Integration Test Complete!"
+echo "🔍 Monitor Redis queues with:"
+echo "   redis-cli LLEN swarm:exec:q      # Pending jobs"
+echo "   redis-cli LLEN swarm:exec:resp   # Completed responses"
 echo ""
-echo "Next steps:"
-echo "• Run smoke tests: python tests/os_exec_smoke.py"
-echo "• Start API server: python app/main.py"  
-echo "• Test golden path: curl -X POST http://localhost:8000/task -d '{\"command\":\"echo success\"}'" 
+echo "🔧 Send manual test job with:"
+echo "   redis-cli RPUSH swarm:exec:q '{\"id\":\"test\",\"code\":\"print(\\\"Hello World\\\")\"}'" 

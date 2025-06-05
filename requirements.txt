@@ -62,7 +62,13 @@ scipy==1.11.4
 
 # Phase 3 Memory Integration
 redis>=4.5.0
+redis[hiredis]==5.0.4     # High-performance Redis client for pattern mining
 qdrant-client>=1.6.0
+
+# Pattern Mining & Clustering (Spiral v2.7.0)
+sentence-transformers==2.6.1   # Lightweight embedding model for clustering  
+hdbscan==0.8.33                # Density-based clustering for prompt patterns
+rdbtools==0.1.20               # Redis RDB file parser for traffic snapshots
 
 # Phase 4 TensorRT-LLM Integration  
 aiohttp>=3.8.0            # Async HTTP client for TensorRT backend

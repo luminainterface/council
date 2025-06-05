@@ -1,0 +1,188 @@
+groups:
+  # ── Autonomous Software Spiral Alerting Rules ──
+  - name: spiral_alerts
+    rules:
+      # Cache Performance Alerts
+      - alert: SpiralCacheHitRateLow
+        expr: swarm_cache_hit_ratio < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Spiral cache hit rate is low"
+          description: "Cache hit rate has been below 60% for 10 minutes. Current rate: {{ $value | humanizePercentage }}"
+
+      - alert: SpiralCacheDown
+        expr: up{job="api"} == 0 or swarm_cache_available == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Spiral cache system is down"
+          description: "The caching system is unavailable, all requests will hit models directly"
+
+      # Pattern Mining Alerts
+      - alert: PatternMinerFailures
+        expr: increase(swarm_pattern_miner_failures_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: pattern_miner
+        annotations:
+          summary: "Pattern mining failures detected"
+          description: "{{ $value }} pattern mining failures in the last hour"
+
+      - alert: PatternMinerDown
+        expr: up{job="pattern-miner"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: pattern_miner
+        annotations:
+          summary: "Pattern miner service is down"
+          description: "Pattern mining service has been down for 5 minutes"
+
+      - alert: SyntheticSpecialistsStale
+        expr: time() - swarm_patterns_last_update_timestamp > 86400 * 7  # 7 days
+        for: 1h
+        labels:
+          severity: warning
+          component: pattern_miner
+        annotations:
+          summary: "Synthetic specialists are stale"
+          description: "No new patterns have been learned in the last 7 days"
+
+      # Cost and Budget Alerts
+      - alert: DailyBudgetExceeded
+        expr: swarm_daily_cost_usd > 0.10
+        for: 1m
+        labels:
+          severity: critical
+          component: cost_tracker
+        annotations:
+          summary: "Daily budget exceeded"
+          description: "Daily cost ${{ $value }} has exceeded the $0.10 budget limit"
+
+      - alert: DailyBudgetNearLimit
+        expr: swarm_daily_cost_usd > 0.08
+        for: 5m
+        labels:
+          severity: warning
+          component: cost_tracker
+        annotations:
+          summary: "Daily budget near limit"
+          description: "Daily cost ${{ $value }} is approaching the $0.10 budget limit"
+
+      - alert: CloudProviderOveruse
+        expr: rate(swarm_cloud_requests_total[1h]) / rate(swarm_total_requests_total[1h]) > 0.3
+        for: 15m
+        labels:
+          severity: warning
+          component: cost_tracker
+        annotations:
+          summary: "High cloud provider usage"
+          description: "{{ $value | humanizePercentage }} of requests are using cloud providers"
+
+      # GPU and Performance Alerts
+      - alert: GPUMemoryHigh
+        expr: swarm_gpu_memory_used_mb / swarm_gpu_memory_total_mb > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "GPU memory usage is high"
+          description: "GPU memory usage is {{ $value | humanizePercentage }} of total capacity"
+
+      - alert: LoRATrainingDown
+        expr: up{job="trainer"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: trainer
+        annotations:
+          summary: "LoRA training service is down"
+          description: "Training service has been down for 10 minutes, nightly distillation may fail"
+
+      - alert: NightlyDistillationMissed
+        expr: time() - swarm_last_distillation_timestamp > 86400 * 2  # 2 days
+        for: 1h
+        labels:
+          severity: warning
+          component: trainer
+        annotations:
+          summary: "Nightly distillation has been missed"
+          description: "No distillation has run in the last 2 days"
+
+      # Response Quality Alerts
+      - alert: Agent0ConfidenceLow
+        expr: avg_over_time(swarm_agent0_confidence[1h]) < 0.4
+        for: 30m
+        labels:
+          severity: warning
+          component: agent0
+        annotations:
+          summary: "Agent-0 confidence is consistently low"
+          description: "Average Agent-0 confidence over the last hour: {{ $value | humanizePercentage }}"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, rate(swarm_request_duration_seconds_bucket[5m])) > 2.0
+        for: 10m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High latency detected"
+          description: "95th percentile latency is {{ $value }}s, above 2s threshold"
+
+      # System Health Alerts
+      - alert: SpiralServicesDown
+        expr: count(up{job=~"api|pattern-miner|trainer|scheduler"} == 0) > 1
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Multiple spiral services are down"
+          description: "{{ $value }} spiral services are currently down"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Redis is down"
+          description: "Redis database is unavailable, affecting caching and queues"
+
+  # ── Learning and Improvement Metrics ──
+  - name: spiral_learning
+    rules:
+      # Pattern Learning Rate
+      - record: swarm_pattern_learning_rate
+        expr: increase(swarm_patterns_learned_total[24h])
+
+      # Cost Savings Rate
+      - record: swarm_cost_savings_rate
+        expr: swarm_daily_saved_usd / (swarm_daily_cost_usd + swarm_daily_saved_usd)
+
+      # Local vs Cloud Usage Ratio
+      - record: swarm_local_usage_ratio
+        expr: rate(swarm_local_requests_total[1h]) / rate(swarm_total_requests_total[1h])
+
+      # Pattern Specialist Hit Rate
+      - record: swarm_pattern_hit_rate
+        expr: rate(swarm_pattern_specialist_requests_total[1h]) / rate(swarm_total_requests_total[1h])
+
+      # Self-Improvement Score (composite metric)
+      - record: swarm_spiral_improvement_score
+        expr: |
+          (
+            swarm_pattern_hit_rate * 0.3 +
+            swarm_cost_savings_rate * 0.3 +
+            swarm_local_usage_ratio * 0.2 +
+            (1 - swarm_cache_hit_ratio) * 0.2
+          ) 

@@ -1,0 +1,484 @@
+version: '3.8'
+
+# Autonomous Software Spiral v2.7.0 - Production Stack with Traefik & Canary
+# One-command reproducible deployment with hot weight changes and health-gating
+
+services:
+  # ── Traefik Load Balancer & Service Discovery ──
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.api.address=:9000"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--api.insecure=true"  # For dev - remove in production
+    ports:
+      - "80:80"
+      - "443:443"
+      - "9000:9000"  # API traffic
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik:/etc/traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Main API Service (95% traffic by default) ──
+  api:
+    image: ${REGISTRY:-registry.example.com}/swarm/api:${VERSION:-v2.7.0-spiral}
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    environment:
+      - SWARM_GPU_PROFILE=${SWARM_GPU_PROFILE:-rtx_4070}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_REDIS_URL=redis://redis:6379/1
+      - PATTERN_REDIS_URL=redis://redis:6379/3
+      - SWARM_BUDGET_DAILY_USD=${SWARM_BUDGET_DAILY_USD:-0.10}
+      - SWARM_CONFIDENCE_GATE=${SWARM_CONFIDENCE_GATE:-0.60}
+      - SWARM_PATTERN_MINING_ENABLED=${SWARM_PATTERN_MINING_ENABLED:-true}
+      - SWARM_COST_TRACKING_ENABLED=${SWARM_COST_TRACKING_ENABLED:-true}
+      - SERVICE_VERSION=main
+    volumes:
+      - models_vol:/models
+      - ./logs:/app/logs
+      - ./.env.swarm:/app/.env
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      redis:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-main.rule=Host(`api.swarm.local`) || PathPrefix(`/orchestrate`) || PathPrefix(`/vote`) || PathPrefix(`/health`)"
+      - "traefik.http.routers.api-main.service=api-main"
+      - "traefik.http.services.api-main.loadbalancer.server.port=8000"
+      - "traefik.http.services.api-main.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.api-main.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.middlewares.api-weight.weighted.services.api-main.weight=${API_MAIN_WEIGHT:-95}"
+      - "traefik.http.middlewares.api-weight.weighted.services.api-canary.weight=${API_CANARY_WEIGHT:-5}"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/metrics"
+
+  # ── Canary API Service (5% traffic by default) ──
+  api-canary:
+    image: ${REGISTRY:-registry.example.com}/swarm/api:${CANARY_VERSION:-v2.7.0-spiral}
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        - VERSION=${CANARY_VERSION:-v2.7.0-spiral}
+    restart: unless-stopped
+    environment:
+      - SWARM_GPU_PROFILE=${SWARM_GPU_PROFILE:-rtx_4070}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_REDIS_URL=redis://redis:6379/1
+      - PATTERN_REDIS_URL=redis://redis:6379/3
+      - SWARM_BUDGET_DAILY_USD=${SWARM_BUDGET_DAILY_USD:-0.10}
+      - SWARM_CONFIDENCE_GATE=${SWARM_CONFIDENCE_GATE:-0.60}
+      - SWARM_PATTERN_MINING_ENABLED=${SWARM_PATTERN_MINING_ENABLED:-true}
+      - SWARM_COST_TRACKING_ENABLED=${SWARM_COST_TRACKING_ENABLED:-true}
+      - SERVICE_VERSION=canary
+    volumes:
+      - models_vol:/models
+      - ./logs:/app/logs
+      - ./.env.swarm:/app/.env
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-canary.rule=Host(`api.swarm.local`) || PathPrefix(`/orchestrate`) || PathPrefix(`/vote`) || PathPrefix(`/health`)"
+      - "traefik.http.routers.api-canary.service=api-canary"
+      - "traefik.http.services.api-canary.loadbalancer.server.port=8000"
+      - "traefik.http.services.api-canary.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.api-canary.loadbalancer.healthcheck.interval=30s"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/metrics"
+      - "prometheus.io/instance=canary"
+    profiles:
+      - canary
+
+  # ── Pattern Mining Service ──
+  pattern-miner:
+    image: ${REGISTRY:-registry.example.com}/swarm/pattern-miner:${VERSION:-v2.7.0}
+    build:
+      context: .
+      dockerfile: Dockerfile.pattern-miner
+    restart: on-failure
+    environment:
+      - REDIS_URL=redis://redis:6379/3
+      - PATTERN_MINING_INTERVAL=${PATTERN_MINING_INTERVAL:-21600}
+      - MIN_CLUSTER_SIZE=${MIN_CLUSTER_SIZE:-3}
+      - MIN_CONFIDENCE=${MIN_CONFIDENCE:-0.7}
+    volumes:
+      - models_vol:/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "/app/health_check.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8001"
+      - "prometheus.io/path=/metrics"
+
+  # ── Trainer with GPU Support ──
+  trainer:
+    image: ${REGISTRY:-registry.example.com}/swarm/trainer:${VERSION:-v2.7.0}
+    build:
+      context: .
+      dockerfile: Dockerfile.trainer
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TRAINING_BUDGET_USD=${TRAINING_BUDGET_USD:-0.05}
+      - LORA_RANK=${LORA_RANK:-16}
+      - LORA_ALPHA=${LORA_ALPHA:-32}
+      - MAX_TRAINING_TIME_MINUTES=${MAX_TRAINING_TIME_MINUTES:-120}
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF:-max_split_size_mb:128}
+    volumes:
+      - models_vol:/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./tasks:/app/tasks
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "/app/health_check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8002"
+      - "prometheus.io/path=/metrics"
+
+  # ── Scheduler for Nightly Jobs ──
+  scheduler:
+    image: ${REGISTRY:-registry.example.com}/swarm/cron:${VERSION:-v2.7.0}
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SCHEDULE_NIGHTLY_DISTILLATION=${SCHEDULE_NIGHTLY_DISTILLATION:-true}
+      - SCHEDULE_PATTERN_MINING=${SCHEDULE_PATTERN_MINING:-true}
+      - FALLBACK_PROMPTS_ENABLED=${FALLBACK_PROMPTS_ENABLED:-true}
+    volumes:
+      - ./logs:/app/logs
+      - ./tasks:/app/tasks
+    depends_on:
+      redis:
+        condition: service_healthy
+      trainer:
+        condition: service_healthy
+      pattern-miner:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "scheduler.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8003"
+      - "prometheus.io/path=/metrics"
+
+  # ── Redis with Persistence ──
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 2gb --maxmemory-policy allkeys-lru --save 900 1 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ── Prometheus with Enhanced Configuration ──
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_DAYS:-30}d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/spiral_rules.yml:/etc/prometheus/spiral_rules.yml
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.swarm.local`)"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  # ── Grafana with Spiral Dashboards ──
+  grafana:
+    image: grafana/grafana:10.1.0
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-swarm_admin_2024}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.swarm.local`)"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  # ── Alertmanager for Production Alerts ──
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--log.level=info'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/config.yml
+      - alertmanager_data:/alertmanager
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alerts.swarm.local`)"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+
+  # ── Pushgateway for Batch Job Metrics ──
+  pushgateway:
+    image: prom/pushgateway:v1.6.0
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9091"
+      - "prometheus.io/path=/metrics"
+    profiles:
+      - monitoring
+
+  # ── CI-Only Services (No GPU Requirements) ──
+  api-ci:
+    image: ${REGISTRY:-registry.example.com}/swarm/api:${VERSION:-v2.7.0-spiral}
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    environment:
+      - SWARM_GPU_PROFILE=cpu_only
+      - MISTRAL_API_KEY=dummy-ci-key
+      - OPENAI_API_KEY=dummy-ci-key
+      - ANTHROPIC_API_KEY=dummy-ci-key
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_REDIS_URL=redis://redis:6379/1
+      - SWARM_BUDGET_DAILY_USD=1.00
+      - SWARM_CONFIDENCE_GATE=0.50
+      - SWARM_PATTERN_MINING_ENABLED=false
+      - SWARM_COST_TRACKING_ENABLED=false
+      - SWARM_CLOUD_ENABLED=false
+      - SERVICE_VERSION=ci
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - swarm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-ci.rule=Host(`api.swarm.local`) || PathPrefix(`/orchestrate`) || PathPrefix(`/vote`) || PathPrefix(`/health`)"
+      - "traefik.http.routers.api-ci.service=api-ci"
+      - "traefik.http.services.api-ci.loadbalancer.server.port=8000"
+      - "traefik.http.services.api-ci.loadbalancer.healthcheck.path=/health"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+    profiles:
+      - ci
+
+volumes:
+  models_vol:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/models
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  swarm-network:
+    name: swarm-spiral-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

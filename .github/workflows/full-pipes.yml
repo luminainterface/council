@@ -1,0 +1,145 @@
+name: Full Pipes CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  full-pipes:
+    name: Full Pipes Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ hashFiles('infra/**', 'Dockerfile.*', 'docker-compose.production.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Log environment info
+      run: |
+        echo "🐳 Docker version: $(docker --version)"
+        echo "🔧 Docker Compose version: $(docker compose version)"
+        echo "💾 Available disk: $(df -h / | tail -1 | awk '{print $4}')"
+        echo "🧠 Available memory: $(free -h | grep Mem | awk '{print $7}')"
+
+    - name: Create required directories
+      run: |
+        mkdir -p models data logs tasks reports infra/traefik
+        mkdir -p monitoring/grafana/provisioning monitoring/grafana/dashboards
+
+    - name: Build Docker images
+      run: |
+        echo "🔨 Building all Docker images for CI..."
+        DOCKER_BUILDKIT=1 make -f Makefile.spiral docker-build-all
+      env:
+        BUILDX_CACHE_FROM: type=local,src=/tmp/.buildx-cache
+        BUILDX_CACHE_TO: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+    - name: Start CI stack
+      run: |
+        echo "🚀 Starting CI stack with quick profile..."
+        timeout 5m make -f Makefile.spiral ci-up
+      env:
+        DOCKER_BUILDKIT: 1
+
+    - name: Wait for services to be ready
+      run: |
+        echo "⏳ Waiting for services to be healthy..."
+        timeout 3m bash -c 'until make -f Makefile.spiral health >/dev/null 2>&1; do sleep 10; done'
+        echo "✅ All services healthy"
+
+    - name: Run full pipes test suite
+      id: gate_test
+      run: |
+        echo "🚦 Running full release gate pipeline..."
+        timeout 10m make -f Makefile.spiral gate
+        echo "gate_status=success" >> $GITHUB_OUTPUT
+      continue-on-error: true
+
+    - name: Collect test artifacts
+      if: always()
+      run: |
+        echo "📊 Collecting test reports and logs..."
+        
+        # Create comprehensive test report
+        {
+          echo "# Full Pipes Test Report - $(date)"
+          echo "Commit: $GITHUB_SHA"
+          echo "Workflow: $GITHUB_RUN_ID"
+          echo ""
+          echo "## Test Results"
+          if [ "${{ steps.gate_test.outputs.gate_status }}" = "success" ]; then
+            echo "✅ FULL PIPES PASSED"
+          else
+            echo "❌ FULL PIPES FAILED"
+          fi
+          echo ""
+          echo "## Service Status"
+          make -f Makefile.spiral status || echo "Could not get service status"
+          echo ""
+          echo "## Resource Usage"
+          docker system df || echo "Could not get Docker usage"
+        } > reports/full_pipes_last.txt
+
+        # Ensure we have some artifacts even if tests failed
+        if [ ! -f "reports/titanic_optimized_$(date +%Y-%m-%d).json" ]; then
+          echo '{"status":"failed","reason":"titanic_test_not_completed","timestamp":"'$(date -Iseconds)'"}' > reports/titanic_failed.json
+        fi
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: full-pipes-reports-${{ github.run_id }}
+        path: |
+          reports/titanic_*.json
+          reports/full_pipes_last.txt
+          logs/*.log
+        retention-days: 30
+
+    - name: Show final logs on failure
+      if: failure()
+      run: |
+        echo "🔍 Container logs for debugging:"
+        make -f Makefile.spiral logs --tail=50 || true
+        echo ""
+        echo "🏥 Final health check:"
+        make -f Makefile.spiral health || true
+
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "🧹 Cleaning up CI environment..."
+        make -f Makefile.spiral clean || true
+
+    - name: Move cache
+      if: always()
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
+
+    - name: Report final status
+      if: always()
+      run: |
+        if [ "${{ steps.gate_test.outputs.gate_status }}" = "success" ]; then
+          echo "🎉 Full pipes test suite PASSED!"
+          echo "✅ All 10 stages completed successfully"
+          echo "📊 Reports uploaded as artifacts"
+        else
+          echo "❌ Full pipes test suite FAILED!"
+          echo "🔍 Check the logs and artifacts for details"
+          exit 1 

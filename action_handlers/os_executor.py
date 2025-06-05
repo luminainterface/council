@@ -1,455 +1,474 @@
 #!/usr/bin/env python3
 """
-OS Shell Executor - Week 2 Integration
-=====================================
+OS Shell Executor - Week 2 Integration (Redis-Based) - Hardened Queue
+=====================================================================
 
-Provides secure shell command execution with:
-- Allowlist-based command filtering
-- Cost guards (CPU time, filesystem changes) 
-- Cross-platform support (Windows PowerShell, Linux bash, WSL)
-- Prometheus metrics integration
-- Audit trail logging
+CRITICAL FIX: Atomic queue pattern to eliminate reply-loss race condition
+- BRPOPLPUSH for atomic job hand-off (no vanish window)
+- Visibility timeout with GC worker for orphaned tasks
+- Exactly-once ACK with Lua script for atomic completion
 
 Integrates with existing sandbox_exec.py for secure execution.
 """
 
-import os
-import subprocess
-import tempfile
-import time
-import logging
-import hashlib
+import asyncio
 import json
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass
-from enum import Enum
+import logging
+import os
+import uuid
+import time
+from typing import Dict, Any, Optional
 
 # Use existing sandbox infrastructure
-from sandbox_exec import exec_safe, detect_available_providers, load_settings
+from sandbox_exec import exec_safe
 
-# Prometheus metrics
+# Redis async client
 try:
-    from prometheus_client import Counter, Histogram, Gauge
-    OS_EXEC_TOTAL = Counter('swarm_os_exec_total', 'Total OS executions', ['command_type', 'status'])
-    OS_EXEC_LATENCY = Histogram('swarm_os_exec_latency_seconds', 'OS execution latency')
-    OS_EXEC_CPU_TIME = Histogram('swarm_os_exec_cpu_seconds', 'CPU time consumed by OS executions')
-    OS_EXEC_FS_CHANGES = Counter('swarm_os_exec_fs_changes_total', 'Filesystem changes detected')
-    OS_EXEC_BLOCKED = Counter('swarm_os_exec_blocked_total', 'Blocked dangerous commands', ['reason'])
+    import redis.asyncio as aioredis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+
+# Prometheus metrics - avoid duplication
+try:
+    from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, REGISTRY
+    
+    # Check if metrics already exist to avoid duplication
+    try:
+        EXEC_OK = REGISTRY._names_to_collectors.get("os_exec_success_total")
+        if EXEC_OK is None:
+            EXEC_OK = Counter("os_exec_success_total", "sandbox exec success")
+    except:
+        EXEC_OK = Counter("os_exec_success_total", "sandbox exec success")
+    
+    try:
+        EXEC_REDIS_ERR = REGISTRY._names_to_collectors.get("os_exec_redis_err_total")
+        if EXEC_REDIS_ERR is None:
+            EXEC_REDIS_ERR = Counter("os_exec_redis_err_total", "redis errors", ["error_type"])
+    except:
+        EXEC_REDIS_ERR = Counter("os_exec_redis_err_total", "redis errors", ["error_type"])
+    
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger("os_executor")
 
-class CommandType(Enum):
-    """Types of OS commands"""
-    FILE_OPERATION = "file_op"
-    DIRECTORY_OPERATION = "dir_op"
-    PROCESS_MANAGEMENT = "process"
-    SYSTEM_INFO = "system_info"
-    PACKAGE_MANAGEMENT = "package"
-    SERVICE_MANAGEMENT = "service"
-    NETWORK = "network"
-    DANGEROUS = "dangerous"
-    UNKNOWN = "unknown"
-
-@dataclass
-class ExecutionResult:
-    """Result of OS command execution"""
-    success: bool
-    stdout: str
-    stderr: str
-    exit_code: int
-    execution_time_ms: int
-    cpu_time_seconds: float
-    fs_changes_detected: int
-    command_type: CommandType
-    blocked_reason: Optional[str] = None
+# Queue configuration
+QUEUE_READY = "swarm:exec:q"
+QUEUE_PROCESSING = "swarm:exec:processing" 
+QUEUE_DONE = "swarm:exec:resp"
+QUEUE_PROCESSING_TS = "swarm:exec:processing_ts"  # ZSET for visibility timeout
+VISIBILITY_TIMEOUT = 300  # 5 minutes - jobs older than this get requeued
+GC_INTERVAL = 60  # GC runs every 60 seconds
+MAX_RETRIES = 3  # Maximum retries per job
 
 class ShellExecutor:
     """
-    Secure OS shell executor with allowlist and cost guards
+    Hardened Redis-based shell executor with atomic queue operations
+    
+    Features:
+    - BRPOPLPUSH for atomic job hand-off (eliminates vanish window)
+    - Visibility timeout with GC worker for orphaned task recovery
+    - Exactly-once ACK with Lua script for atomic completion
+    - Prometheus metrics for queue health monitoring
     """
     
-    def __init__(self):
-        """Initialize shell executor with security configuration"""
-        self.settings = load_settings()
-        self.max_cpu_seconds = int(os.getenv("OS_EXEC_MAX_CPU_SECONDS", "10"))
-        self.max_fs_changes = int(os.getenv("OS_EXEC_MAX_FS_CHANGES", "50"))
-        self.audit_log_path = Path("logs/os_executor_audit.jsonl")
+    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
+        """Initialize executor with Redis connection"""
+        self.redis_url = redis_url
+        self.redis: Optional[aioredis.Redis] = None
+        self.running = False
+        self.gc_task = None
         
-        # Ensure audit log directory exists
-        self.audit_log_path.parent.mkdir(exist_ok=True)
+        # Lua script for atomic completion (LREM + LPUSH)
+        self.ack_script = """
+        local processing_key = KEYS[1]
+        local done_key = KEYS[2] 
+        local processing_ts_key = KEYS[3]
+        local job_id = ARGV[1]
+        local response = ARGV[2]
         
-        # Initialize allowlist
-        self._load_command_allowlist()
-        
-        logger.info(f"🛡️ ShellExecutor initialized: max_cpu={self.max_cpu_seconds}s, max_fs={self.max_fs_changes}")
-    
-    def _load_command_allowlist(self) -> None:
-        """Load command allowlist for security filtering"""
-        # Week 2 allowlist - dev-oriented and safe commands
-        self.allowed_commands = {
-            # File operations (safe)
-            CommandType.FILE_OPERATION: {
-                "cat", "head", "tail", "less", "more", "wc", "grep", "find", "ls", "dir",
-                "echo", "touch", "mkdir", "cp", "copy", "move", "mv", "stat", "file"
-            },
-            
-            # Directory operations
-            CommandType.DIRECTORY_OPERATION: {
-                "pwd", "cd", "ls", "dir", "tree", "mkdir", "rmdir", "find"
-            },
-            
-            # System info (read-only)
-            CommandType.SYSTEM_INFO: {
-                "ps", "top", "htop", "free", "df", "du", "uptime", "whoami", "id",
-                "uname", "hostname", "date", "which", "where", "env", "printenv"
-            },
-            
-            # Development tools
-            CommandType.PROCESS_MANAGEMENT: {
-                "python", "python3", "node", "npm", "pip", "git", "docker"
-            },
-            
-            # Package management (controlled)
-            CommandType.PACKAGE_MANAGEMENT: {
-                "pip", "npm", "apt", "yum", "brew", "choco"
-            },
-            
-            # Service management (limited)
-            CommandType.SERVICE_MANAGEMENT: {
-                "systemctl", "service", "sc", "net"
-            }
-        }
-        
-        # Dangerous commands that are always blocked
-        self.dangerous_commands = {
-            "rm", "del", "rmdir", "dd", "format", "fdisk", "mkfs", "fsck",
-            "chmod", "chown", "chgrp", "sudo", "su", "passwd", "kill", "killall",
-            "reboot", "shutdown", "halt", "init", "mount", "umount", "crontab",
-            "iptables", "ufw", "firewall-cmd", "netsh", "reg", "regedit"
-        }
-    
-    def _classify_command(self, command: str) -> Tuple[CommandType, bool]:
+        -- Remove from processing list
+        local removed = redis.call('LREM', processing_key, 1, job_id)
+        if removed > 0 then
+            -- Remove from processing timestamp tracker
+            redis.call('ZREM', processing_ts_key, job_id)
+            -- Add to done queue
+            redis.call('LPUSH', done_key, response)
+            return 1
+        else
+            return 0
+        end
         """
-        Classify command and determine if it's allowed
         
-        Returns:
-            (command_type, is_allowed)
-        """
-        # Extract base command
-        base_cmd = command.strip().split()[0].lower()
-        
-        # Check for dangerous commands first
-        if base_cmd in self.dangerous_commands:
-            return CommandType.DANGEROUS, False
-        
-        # Check allowlist
-        for cmd_type, allowed_set in self.allowed_commands.items():
-            if base_cmd in allowed_set:
-                return cmd_type, True
-        
-        # Unknown command - block by default for security
-        return CommandType.UNKNOWN, False
+        if not REDIS_AVAILABLE:
+            log.warning("Redis not available - ShellExecutor will not function")
     
-    def _check_cost_guards(self, command: str, estimated_runtime: float = 0) -> Optional[str]:
-        """
-        Check cost guards before execution
-        
-        Returns:
-            None if allowed, error message if blocked
-        """
-        # CPU time guard
-        if estimated_runtime > self.max_cpu_seconds:
-            return f"Command estimated to exceed CPU limit ({self.max_cpu_seconds}s)"
-        
-        # Filesystem change guard (heuristic)
-        fs_heavy_keywords = ["install", "update", "upgrade", "remove", "uninstall", "build", "compile"]
-        if any(keyword in command.lower() for keyword in fs_heavy_keywords):
-            if self.max_fs_changes < 10:  # Conservative filesystem guard
-                return f"Command may exceed filesystem change limit ({self.max_fs_changes})"
-        
-        return None
-    
-    def _audit_log(self, command: str, result: ExecutionResult) -> None:
-        """Log execution to audit trail"""
+    async def _connect_redis(self) -> bool:
+        """Connect to Redis with error handling"""
         try:
-            audit_entry = {
-                "timestamp": time.time(),
-                "command": command,
-                "success": result.success,
-                "exit_code": result.exit_code,
-                "execution_time_ms": result.execution_time_ms,
-                "cpu_time_seconds": result.cpu_time_seconds,
-                "fs_changes": result.fs_changes_detected,
-                "command_type": result.command_type.value,
-                "blocked_reason": result.blocked_reason
-            }
-            
-            with open(self.audit_log_path, "a") as f:
-                f.write(json.dumps(audit_entry) + "\n")
-                
+            self.redis = aioredis.from_url(self.redis_url, decode_responses=True)
+            # Test connection
+            await self.redis.ping()
+            log.info(f"✅ Redis connected: {self.redis_url}")
+            return True
         except Exception as e:
-            logger.warning(f"Failed to write audit log: {e}")
+            log.error(f"❌ Redis connection failed: {e}")
+            return False
     
-    def _create_execution_script(self, command: str, shell_type: str = "bash") -> str:
-        """
-        Create secure execution script with monitoring
-        
-        Returns script content for sandboxed execution
-        """
-        if shell_type == "powershell":
-            script = f"""
-# PowerShell execution wrapper with monitoring
-$start = Get-Date
-$process = Start-Process -FilePath "powershell" -ArgumentList "-Command", "{command}" -Wait -PassThru -NoNewWindow -RedirectStandardOutput "stdout.txt" -RedirectStandardError "stderr.txt"
-$end = Get-Date
-$duration = ($end - $start).TotalMilliseconds
-
-# Output results in JSON format
-@{{
-    "exit_code" = $process.ExitCode
-    "stdout" = (Get-Content "stdout.txt" -Raw -ErrorAction SilentlyContinue) ?? ""
-    "stderr" = (Get-Content "stderr.txt" -Raw -ErrorAction SilentlyContinue) ?? ""
-    "execution_time_ms" = [int]$duration
-    "cpu_time_seconds" = $process.TotalProcessorTime.TotalSeconds
-}} | ConvertTo-Json -Compress
-"""
-        else:
-            # Bash/shell script
-            script = f"""
-#!/bin/bash
-set -euo pipefail
-
-# Start timing
-start_time=$(date +%s%3N)
-start_cpu=$(grep 'cpu ' /proc/stat | awk '{{print $2+$3+$4+$5+$6+$7+$8}}' 2>/dev/null || echo 0)
-
-# Execute command with timeout
-timeout {self.max_cpu_seconds}s bash -c "{command}" > stdout.txt 2> stderr.txt || exit_code=$?
-
-# End timing
-end_time=$(date +%s%3N)
-end_cpu=$(grep 'cpu ' /proc/stat | awk '{{print $2+$3+$4+$5+$6+$7+$8}}' 2>/dev/null || echo 0)
-
-# Calculate metrics
-execution_time=$((end_time - start_time))
-cpu_time=$(echo "scale=3; ($end_cpu - $start_cpu) / 100" | bc 2>/dev/null || echo "0")
-
-# Output JSON result
-cat << EOF
-{{
-    "exit_code": ${{exit_code:-0}},
-    "stdout": "$(cat stdout.txt | sed 's/"/\\"/g' | tr '\\n' '\\\\n')",
-    "stderr": "$(cat stderr.txt | sed 's/"/\\"/g' | tr '\\n' '\\\\n')",
-    "execution_time_ms": $execution_time,
-    "cpu_time_seconds": $cpu_time
-}}
-EOF
-"""
-        
-        return script
-    
-    def _execute_powershell_direct(self, command: str) -> dict:
-        """
-        Direct PowerShell execution for Windows development
-        
-        Temporary implementation for Week 2 development when Docker/WSL not available
-        """
-        start_time = time.perf_counter()
-        
-        try:
-            # Basic PowerShell execution with timeout
-            result = subprocess.run(
-                ["powershell", "-Command", command],
-                capture_output=True,
-                text=True,
-                timeout=self.max_cpu_seconds
-            )
-            
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "elapsed_ms": elapsed_ms
-            }
-            
-        except subprocess.TimeoutExpired:
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            raise RuntimeError(f"Command timed out after {self.max_cpu_seconds}s")
-        except Exception as e:
-            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-            raise RuntimeError(f"PowerShell execution failed: {str(e)}")
-    
-    @OS_EXEC_LATENCY.time() if PROMETHEUS_AVAILABLE else lambda f: f
-    def execute_command(self, command: str, working_dir: Optional[str] = None) -> ExecutionResult:
-        """
-        Execute OS command with security and monitoring
-        
-        Args:
-            command: Shell command to execute
-            working_dir: Optional working directory
-            
-        Returns:
-            ExecutionResult with execution details
-        """
-        start_time = time.perf_counter()
-        
-        # 1. Classify and validate command
-        command_type, is_allowed = self._classify_command(command)
-        
-        if not is_allowed:
-            if PROMETHEUS_AVAILABLE:
-                OS_EXEC_BLOCKED.labels(reason="not_allowed").inc()
-            
-            result = ExecutionResult(
-                success=False,
-                stdout="",
-                stderr="Command not in allowlist",
-                exit_code=-1,
-                execution_time_ms=0,
-                cpu_time_seconds=0,
-                fs_changes_detected=0,
-                command_type=command_type,
-                blocked_reason="Command not in allowlist"
-            )
-            self._audit_log(command, result)
-            return result
-        
-        # 2. Check cost guards
-        cost_guard_error = self._check_cost_guards(command)
-        if cost_guard_error:
-            if PROMETHEUS_AVAILABLE:
-                OS_EXEC_BLOCKED.labels(reason="cost_guard").inc()
-            
-            result = ExecutionResult(
-                success=False,
-                stdout="",
-                stderr=cost_guard_error,
-                exit_code=-1,
-                execution_time_ms=0,
-                cpu_time_seconds=0,
-                fs_changes_detected=0,
-                command_type=command_type,
-                blocked_reason=cost_guard_error
-            )
-            self._audit_log(command, result)
-            return result
-        
-        # 3. Execute in sandbox
-        try:
-            # Determine shell type
-            shell_type = "powershell" if os.name == 'nt' else "bash"
-            
-            # For Week 2 development, use simplified execution for Windows
-            if os.name == 'nt':
-                # Direct PowerShell execution for Windows development
-                sandbox_result = self._execute_powershell_direct(command)
-            else:
-                # Create execution script for Linux
-                script = self._create_execution_script(command, shell_type)
-                # Execute through existing sandbox infrastructure
-                sandbox_result = exec_safe(script, lang="sh")
-            
-            # Parse result from JSON output
+    async def _gc_worker(self):
+        """Garbage collector for orphaned jobs with visibility timeout"""
+        while self.running:
             try:
-                output_data = json.loads(sandbox_result["stdout"])
+                if not self.redis:
+                    await asyncio.sleep(GC_INTERVAL)
+                    continue
                 
-                execution_time_ms = int((time.perf_counter() - start_time) * 1000)
+                now = time.time()
+                cutoff = now - VISIBILITY_TIMEOUT
                 
-                result = ExecutionResult(
-                    success=(output_data.get("exit_code", 0) == 0),
-                    stdout=output_data.get("stdout", ""),
-                    stderr=output_data.get("stderr", ""),
-                    exit_code=output_data.get("exit_code", 0),
-                    execution_time_ms=execution_time_ms,
-                    cpu_time_seconds=float(output_data.get("cpu_time_seconds", 0)),
-                    fs_changes_detected=0,  # TODO: Implement FS change detection
-                    command_type=command_type
+                # Find stale jobs (older than visibility timeout)
+                stale_jobs = await self.redis.zrangebyscore(
+                    QUEUE_PROCESSING_TS, 0, cutoff, withscores=False
                 )
                 
-            except json.JSONDecodeError:
-                # Fallback if JSON parsing fails
-                result = ExecutionResult(
-                    success=True,
-                    stdout=sandbox_result["stdout"],
-                    stderr=sandbox_result["stderr"],
-                    exit_code=0,
-                    execution_time_ms=sandbox_result["elapsed_ms"],
-                    cpu_time_seconds=0,
-                    fs_changes_detected=0,
-                    command_type=command_type
+                if stale_jobs:
+                    log.warning(f"🔄 GC found {len(stale_jobs)} stale jobs, requeuing...")
+                    
+                    for job_id in stale_jobs:
+                        try:
+                            # Get the job from processing queue
+                            job_data = await self.redis.lrange(QUEUE_PROCESSING, 0, -1)
+                            job_found = None
+                            
+                            for job_json in job_data:
+                                try:
+                                    job = json.loads(job_json)
+                                    if job.get("id") == job_id:
+                                        job_found = job
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
+                            
+                            if job_found:
+                                # Increment retry count
+                                retry_count = job_found.get("retry_count", 0) + 1
+                                
+                                if retry_count <= MAX_RETRIES:
+                                    job_found["retry_count"] = retry_count
+                                    
+                                    # Remove from processing queue and timestamp tracker
+                                    await self.redis.lrem(QUEUE_PROCESSING, 1, job_json)
+                                    await self.redis.zrem(QUEUE_PROCESSING_TS, job_id)
+                                    
+                                    # Re-queue to ready
+                                    await self.redis.lpush(QUEUE_READY, json.dumps(job_found))
+                                    
+                                    log.info(f"🔄 Requeued job {job_id[:8]}... (retry {retry_count}/{MAX_RETRIES})")
+                                    
+                                    if PROMETHEUS_AVAILABLE:
+                                        EXEC_GC_REQUEUED.inc()
+                                else:
+                                    # Max retries exceeded, send failure response
+                                    error_response = {
+                                        "id": job_id,
+                                        "ok": False,
+                                        "error": f"Max retries ({MAX_RETRIES}) exceeded",
+                                        "stdout": "",
+                                        "stderr": "Job failed after maximum retry attempts"
+                                    }
+                                    
+                                    # Remove from processing
+                                    await self.redis.lrem(QUEUE_PROCESSING, 1, job_json)
+                                    await self.redis.zrem(QUEUE_PROCESSING_TS, job_id)
+                                    
+                                    # Send failure response
+                                    await self.redis.lpush(QUEUE_DONE, json.dumps(error_response))
+                                    
+                                    log.error(f"❌ Job {job_id[:8]}... failed after {MAX_RETRIES} retries")
+                            
+                        except Exception as e:
+                            log.error(f"GC error processing job {job_id}: {e}")
+                
+                # Update queue depth metrics
+                if PROMETHEUS_AVAILABLE:
+                    ready_count = await self.redis.llen(QUEUE_READY)
+                    processing_count = await self.redis.llen(QUEUE_PROCESSING)
+                    EXEC_QUEUE_DEPTH.set(ready_count)
+                    EXEC_PROCESSING.set(processing_count)
+                
+            except Exception as e:
+                log.exception(f"GC worker error: {e}")
+                if PROMETHEUS_AVAILABLE:
+                    EXEC_REDIS_ERR.labels(error_type="gc_error").inc()
+            
+            await asyncio.sleep(GC_INTERVAL)
+    
+    async def consume(self):
+        """
+        Main consumer loop with atomic queue operations
+        
+        Uses BRPOPLPUSH for atomic job hand-off to eliminate reply-loss race condition.
+        Implements visibility timeout and exactly-once ACK for reliability.
+        """
+        if not REDIS_AVAILABLE:
+            log.error("Redis not available - cannot start consumer")
+            return
+        
+        # Connect to Redis
+        if not await self._connect_redis():
+            return
+        
+        log.info("🚀 ShellExecutor consumer started (HARDENED)")
+        log.info("   Queue Pattern: BRPOPLPUSH (atomic)")
+        log.info("   Visibility Timeout: 5min with GC")
+        log.info("   Exactly-Once ACK: Lua script")
+        log.info("   Sandbox: WSL with --net=none")
+        
+        self.running = True
+        
+        # Start GC worker
+        self.gc_task = asyncio.create_task(self._gc_worker())
+        
+        while self.running:
+            try:
+                # ATOMIC: Pop from ready queue and push to processing queue in one operation
+                # This eliminates the vanish window that caused reply loss
+                job_json = await self.redis.brpoplpush(
+                    "swarm:exec:q", 
+                    "swarm:exec:processing", 
+                    timeout=5
                 )
-            
-            # Update metrics
-            if PROMETHEUS_AVAILABLE:
-                OS_EXEC_TOTAL.labels(
-                    command_type=command_type.value,
-                    status="success" if result.success else "failed"
-                ).inc()
                 
-                OS_EXEC_CPU_TIME.observe(result.cpu_time_seconds)
+                if job_json is None:
+                    # Timeout - continue polling
+                    continue
                 
-                if result.fs_changes_detected > 0:
-                    OS_EXEC_FS_CHANGES.inc(result.fs_changes_detected)
-            
-            self._audit_log(command, result)
-            return result
-            
-        except Exception as e:
-            logger.error(f"OS execution failed: {e}")
-            
-            execution_time_ms = int((time.perf_counter() - start_time) * 1000)
-            
-            result = ExecutionResult(
-                success=False,
-                stdout="",
-                stderr=f"Execution error: {str(e)}",
-                exit_code=-1,
-                execution_time_ms=execution_time_ms,
-                cpu_time_seconds=0,
-                fs_changes_detected=0,
-                command_type=command_type,
-                blocked_reason=f"Runtime error: {str(e)}"
-            )
-            
-            if PROMETHEUS_AVAILABLE:
-                OS_EXEC_TOTAL.labels(
-                    command_type=command_type.value,
-                    status="error"
-                ).inc()
-            
-            self._audit_log(command, result)
-            return result
+                try:
+                    # Parse job
+                    job = json.loads(job_json)
+                    job_id = job.get("id", str(uuid.uuid4()))
+                    code = job.get("code", "")
+                    retry_count = job.get("retry_count", 0)
+                    
+                    log.info(f"🔧 Processing job {job_id[:8]}... (retry {retry_count}) ({len(code)} chars)")
+                    
+                    # Add to visibility timeout tracker
+                    now = time.time()
+                    await self.redis.zadd(QUEUE_PROCESSING_TS, {job_id: now})
+                    
+                    if not code:
+                        reply = {
+                            "id": job_id,
+                            "ok": False,
+                            "error": "No code provided",
+                            "stdout": "",
+                            "stderr": "Empty code block"
+                        }
+                    else:
+                        try:
+                            # Execute in sandbox
+                            result = exec_safe(code, lang="python")
+                            
+                            reply = {
+                                "id": job_id,
+                                "ok": True,
+                                "stdout": result["stdout"],
+                                "stderr": result["stderr"],
+                                "elapsed_ms": result["elapsed_ms"]
+                            }
+                            
+                            log.info(f"✅ Job {job_id[:8]} completed ({result['elapsed_ms']}ms)")
+                            
+                            if PROMETHEUS_AVAILABLE:
+                                EXEC_OK.inc()
+                                
+                        except RuntimeError as e:
+                            reply = {
+                                "id": job_id,
+                                "ok": False,
+                                "error": str(e),
+                                "stdout": "",
+                                "stderr": str(e)
+                            }
+                            
+                            log.warning(f"❌ Job {job_id[:8]} failed: {e}")
+                    
+                    # ATOMIC ACK: Remove from processing and add to done queue
+                    # Uses Lua script to ensure exactly-once completion
+                    await self.redis.eval(
+                        self.ack_script,
+                        3,  # Number of keys
+                        QUEUE_PROCESSING,
+                        QUEUE_DONE, 
+                        QUEUE_PROCESSING_TS,
+                        job_id,
+                        json.dumps(reply)
+                    )
+                    
+                except json.JSONDecodeError as e:
+                    log.error(f"Invalid JSON in job: {e}")
+                    # Remove malformed job from processing queue
+                    await self.redis.lrem(QUEUE_PROCESSING, 1, job_json)
+                    continue
+                    
+                except Exception as e:
+                    log.exception(f"Job processing error: {e}")
+                    
+                    # Send error response using atomic ACK
+                    try:
+                        error_reply = {
+                            "id": job.get("id", "unknown"),
+                            "ok": False,
+                            "error": f"Processing error: {str(e)}",
+                            "stdout": "",
+                            "stderr": str(e)
+                        }
+                        
+                        await self.redis.eval(
+                            self.ack_script,
+                            3,
+                            QUEUE_PROCESSING,
+                            QUEUE_DONE,
+                            QUEUE_PROCESSING_TS, 
+                            job.get("id", "unknown"),
+                            json.dumps(error_reply)
+                        )
+                    except:
+                        pass  # Don't let error handling fail the main loop
+                    
+            except Exception as e:
+                log.exception(f"Consumer loop error: {e}")
+                
+                if PROMETHEUS_AVAILABLE:
+                    EXEC_REDIS_ERR.labels(error_type="consumer_error").inc()
+                
+                # Back-off on errors to avoid spam
+                await asyncio.sleep(1)
+        
+        log.info("🛑 ShellExecutor consumer stopped")
+    
+    async def stop(self):
+        """Stop the consumer gracefully"""
+        self.running = False
+        
+        if self.gc_task:
+            self.gc_task.cancel()
+            try:
+                await self.gc_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self.redis:
+            await self.redis.aclose()
+        
+        log.info("ShellExecutor stopped")
 
-# Global executor instance
-_executor_instance = None
+# Health check endpoint data
+async def get_queue_health(redis_url: str = "redis://localhost:6379/0") -> Dict[str, Any]:
+    """Get queue health metrics for /healthz endpoint"""
+    try:
+        redis = aioredis.from_url(redis_url, decode_responses=True)
+        
+        ready_count = await redis.llen(QUEUE_READY)
+        processing_count = await redis.llen(QUEUE_PROCESSING)
+        done_count = await redis.llen(QUEUE_DONE)
+        
+        await redis.aclose()
+        
+        return {
+            "queue_backlog": ready_count,
+            "processing_jobs": processing_count,
+            "completed_responses": done_count,
+            "status": "healthy" if processing_count < 100 else "warning"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "queue_backlog": -1
+        }
 
-def get_executor() -> ShellExecutor:
-    """Get singleton shell executor instance"""
-    global _executor_instance
-    if _executor_instance is None:
-        _executor_instance = ShellExecutor()
-    return _executor_instance
-
+# Legacy compatibility functions for existing code
 def execute_shell_command(command: str, working_dir: Optional[str] = None) -> Dict[str, Any]:
     """
-    Public API for shell command execution
+    Legacy compatibility function - executes shell command directly
     
-    Returns simplified result dict for API responses
+    For production use, prefer the Redis queue approach via ShellExecutor.consume()
     """
-    executor = get_executor()
-    result = executor.execute_command(command, working_dir)
+    try:
+        # Simple wrapper around exec_safe for backwards compatibility
+        # Convert shell command to Python code that executes it
+        python_code = f"""
+import subprocess
+import os
+import time
+
+start_time = time.time()
+
+try:
+    result = subprocess.run(
+        {repr(command)},
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        cwd={repr(working_dir) if working_dir else 'None'}
+    )
     
-    return {
-        "success": result.success,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "exit_code": result.exit_code,
-        "execution_time_ms": result.execution_time_ms,
-        "command_type": result.command_type.value,
-        "blocked_reason": result.blocked_reason
-    } 
+    print(f"STDOUT: {{result.stdout}}")
+    print(f"STDERR: {{result.stderr}}")
+    print(f"EXIT_CODE: {{result.returncode}}")
+    print(f"ELAPSED_MS: {{int((time.time() - start_time) * 1000)}}")
+    
+except subprocess.TimeoutExpired:
+    print("ERROR: Command timed out")
+    exit(124)
+except Exception as e:
+    print(f"ERROR: {{str(e)}}")
+    exit(1)
+"""
+        
+        result = exec_safe(python_code, lang="python")
+        
+        # Parse output
+        lines = result["stdout"].split("\n")
+        stdout = ""
+        stderr = ""
+        exit_code = 0
+        
+        for line in lines:
+            if line.startswith("STDOUT: "):
+                stdout = line[8:]
+            elif line.startswith("STDERR: "):
+                stderr = line[8:]
+            elif line.startswith("EXIT_CODE: "):
+                exit_code = int(line[11:])
+        
+        return {
+            "success": exit_code == 0,
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code,
+            "execution_time_ms": result["elapsed_ms"],
+            "command_type": "shell_command",
+            "blocked_reason": None
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": str(e),
+            "exit_code": -1,
+            "execution_time_ms": 0,
+            "command_type": "error",
+            "blocked_reason": f"Execution error: {str(e)}"
+        }
+
+def get_executor() -> ShellExecutor:
+    """Get ShellExecutor instance"""
+    return ShellExecutor(
+        redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    ) 

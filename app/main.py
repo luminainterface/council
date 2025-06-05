@@ -215,6 +215,16 @@ async def lifespan(app: FastAPI):
     SERVICE_STARTUPS_TOTAL.inc()
     echo("[METRICS] Service startup recorded")
     
+    # Start ShellExecutor consumer if enabled
+    if os.getenv("SWARM_EXEC_ENABLED", "true") == "true":
+        try:
+            from action_handlers.os_executor import ShellExecutor
+            ex = ShellExecutor(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+            asyncio.create_task(ex.consume())
+            echo("🔧 ShellExecutor consumer started")
+        except Exception as e:
+            echo(f"⚠️ ShellExecutor startup warning: {e}")
+    
     yield
     
     # Shutdown
@@ -438,13 +448,22 @@ async def health():
 
 @app.get("/healthz")
 async def healthz():
-    """Load balancer health check with QPS metrics and production monitoring"""
+    """Load balancer health check with QPS metrics, production monitoring, and queue health"""
     try:
         # Get basic health
         health_result = await health_check()
         
         # 📊 NEW: Get production monitoring status
         monitoring_health = get_system_health()
+        
+        # 🔧 NEW: Get queue health for OS executor
+        queue_health = {"status": "not_enabled"}
+        if os.getenv("SWARM_EXEC_ENABLED", "true") == "true":
+            try:
+                from action_handlers.os_executor import get_queue_health
+                queue_health = await get_queue_health(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+            except Exception as e:
+                queue_health = {"status": "error", "error": str(e)}
         
         # Add QPS metrics for load balancer
         return {
@@ -456,6 +475,7 @@ async def healthz():
             "system_health": monitoring_health.get("system_health", 0.5),
             "memory_queue": monitoring_health.get("scratchpad_queue", 0),
             "production_alerts_active": monitoring_health.get("monitoring_active", False),
+            "queue_health": queue_health,  # 🔧 NEW: OS executor queue status
             "timestamp": time.time()
         }
     except Exception as e:
@@ -952,6 +972,12 @@ async def chat_stream(request: ChatRequest):
             "Access-Control-Allow-Headers": "*"
         }
     )
+
+@app.post("/admin/exec/{enable}")
+def toggle_exec(enable: bool):
+    """Admin endpoint to toggle shell executor"""
+    os.environ["SWARM_EXEC_ENABLED"] = "true" if enable else "false"
+    return {"exec_enabled": enable}
 
 @app.post("/task", response_model=TaskResponse)
 async def execute_task(request: TaskRequest):
